@@ -1,12 +1,15 @@
 const authRouter = require('./auth');
 const productRouter = require('./product');
+const history_importRouter = require('./history_import');
+const product_categoryRouter = require('./product_category');
 
 function route(app) {
     // Sau này có thêm route sản phẩm, hóa đơn... thì thêm vào đây
     app.use('/api/auth', authRouter);
     app.use('/api/product', productRouter);
+    app.use('/api/product_category', product_categoryRouter);
+    app.use('/api/history_import', history_importRouter);
     
-    // Ví dụ: app.use('/api/products', productRouter);
 }
 
 module.exports = route;
