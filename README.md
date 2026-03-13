@@ -4,18 +4,18 @@ Hệ thống quản lý dược phẩm gồm:
 - Frontend React (Vite)
 - Backend Node.js/Express (Auth + Product API)
 - AI Service FastAPI (FEFO recommendation)
-- MySQL (Docker)
+- MySQL (XAMPP)
 
 ## 1. Kiến trúc và cổng dịch vụ
 - Frontend: `http://localhost:3000`
 - Backend (Auth/API): `http://localhost:5000`
 - AI Service (FEFO): `http://localhost:8000`
-- MySQL host: `localhost:3307` (map vào container `3306`)
+- MySQL host (XAMPP): `127.0.0.1:3306`
 
 Luồng chính:
 - `Login/Register` gọi Backend `:5000`
 - Dashboard FEFO gọi AI Service `:8000`
-- AI Service đọc dữ liệu lô từ DB rồi trả thứ tự xuất kho FEFO
+- Backend + AI cùng đọc chung DB XAMPP để đồng bộ với phpMyAdmin
 
 ## 2. Chạy nhanh bằng Docker (khuyến nghị)
 Yêu cầu:
@@ -44,7 +44,7 @@ docker compose down -v
 ### Quick Demo Script (1 minute)
 Chay nhanh tu dau:
 ```bash
-docker compose down -v
+docker compose down
 docker compose up --build -d
 docker compose ps
 ```
@@ -134,26 +134,21 @@ Risk level:
 	- `SESSION_SECRET`
 	- `FRONTEND_ORIGIN`
 
-## 7. Dữ liệu khởi tạo DB
-- Script: `docker/mysql/init/01_schema.sql`
-- Tạo các bảng tối thiểu cho demo:
-	- `user`
-	- `product`
-- Seed dữ liệu mẫu cho FEFO dashboard
-
-Luu y: Neu DB volume da ton tai tu truoc, script init chi chay luc khoi tao DB moi.
-Neu can reset de chay lai init script:
-```bash
-docker compose down -v
-docker compose up --build -d
-```
+## 7. Luu y khi dung XAMPP MySQL
+- DB duoc dung truc tiep tu XAMPP, khong co container DB rieng.
+- Dam bao MySQL trong XAMPP dang chay truoc khi `docker compose up`.
+- Ten DB mac dinh trong compose: `pharmacymanagement`.
+- Neu root trong XAMPP co mat khau, cap nhat lai trong `docker-compose.yml`:
+	- `DB_PASS` (backend)
+	- `DATABASE_URL` (ai-service)
 
 ## 8. Lỗi thường gặp
 ### `failed to connect to dockerDesktopLinuxEngine`
 - Docker Desktop chưa mở. Hãy mở Docker Desktop rồi chạy lại compose.
 
-### `bind: ... 3306 already in use`
-- Dự án đã map DB sang `3307:3306` để tránh xung đột host `3306`.
+### `ECONNREFUSED` den MySQL
+- Kiem tra MySQL cua XAMPP da start chua.
+- Kiem tra user/password/db name trong compose co dung khong.
 
 ### `POST /api/auth/login 404` trên AI logs
 - Frontend gửi nhầm auth qua `:8000`.

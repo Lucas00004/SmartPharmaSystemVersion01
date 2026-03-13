@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto'; // Import thư viện Chart.js
 
-const SalesChart = () => {
+const SalesChart = ({ labels = [], values = [], label = 'Xu hướng theo ngày' }) => {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
 
@@ -16,10 +16,10 @@ const SalesChart = () => {
     chartInstance.current = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'],
+        labels,
         datasets: [{
-          label: 'Sản phẩm đã bán',
-          data: [120, 210, 180, 320, 250, 410, 380],
+          label,
+          data: values,
           borderColor: '#00529C',
           backgroundColor: 'rgba(0, 82, 156, 0.1)',
           fill: true,
@@ -38,7 +38,7 @@ const SalesChart = () => {
         chartInstance.current.destroy();
       }
     };
-  }, []);
+  }, [labels, values, label]);
 
   return <canvas ref={chartRef} height="80"></canvas>;
 };

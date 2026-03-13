@@ -9,16 +9,55 @@ const DashboardPage = () => {
   const [fefoData, setFefoData] = useState([]);
   const [isLoadingFefo, setIsLoadingFefo] = useState(true);
   const [fefoError, setFefoError] = useState('');
+  const [summary, setSummary] = useState({
+    stats: {
+      weekly_revenue: 0,
+      expiring_products: 0,
+      new_orders: 0,
+      monthly_import: 0,
+    },
+    chart: {
+      labels: [],
+      values: [],
+      label: 'Số lượng phát sinh theo ngày',
+    },
+    expiry_alerts: [],
+  });
+  const [summaryError, setSummaryError] = useState('');
+
+  const BACKEND_URL =
+    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_BACKEND_URL)
+      ? import.meta.env.VITE_BACKEND_URL
+      : 'http://localhost:5000';
+
+  const AI_URL =
+    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_AI_URL)
+      ? import.meta.env.VITE_AI_URL
+      : 'http://localhost:8000';
 
   const toggleChat = () => setIsChatOpen(!isChatOpen);
 
   useEffect(() => {
+    const loadSummary = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/dashboard/summary`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        setSummary(data);
+        setSummaryError('');
+      } catch {
+        setSummaryError('Không thể tải dữ liệu dashboard từ database.');
+      }
+    };
+
     const loadFefo = async () => {
       try {
         setIsLoadingFefo(true);
         setFefoError('');
 
-        const response = await fetch('http://localhost:8000/api/v1/inventory-recommendation/from-db');
+        const response = await fetch(`${AI_URL}/api/v1/inventory-recommendation/from-db`);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
@@ -33,8 +72,9 @@ const DashboardPage = () => {
       }
     };
 
+    loadSummary();
     loadFefo();
-  }, []);
+  }, [BACKEND_URL, AI_URL]);
 
   const getRiskStyle = (riskLevel) => {
     if (riskLevel === 'EXPIRED') {
@@ -56,6 +96,21 @@ const DashboardPage = () => {
     return date.toLocaleDateString('vi-VN');
   };
 
+  const formatCurrency = (value) => Number(value || 0).toLocaleString('vi-VN');
+
+  const getAlertBadge = (riskLevel) => {
+    if (riskLevel === 'EXPIRED' || riskLevel === 'HIGH') return 'badge badge-danger';
+    if (riskLevel === 'MEDIUM') return 'badge badge-warning';
+    return 'badge badge-success';
+  };
+
+  const getAlertLabel = (riskLevel, daysLeft) => {
+    if (riskLevel === 'EXPIRED') return `Đã hết hạn (${Math.abs(daysLeft)} ngày)`;
+    if (riskLevel === 'HIGH') return 'Gần hết hạn';
+    if (riskLevel === 'MEDIUM') return 'Sắp hết hạn';
+    return 'Ổn định';
+  };
+
   return (
     <div className="admin-body">
       {/* Tái sử dụng Sidebar */}
@@ -71,26 +126,27 @@ const DashboardPage = () => {
         <div className="stats-grid">
           <div className="stat-card">
             <h3>Doanh thu tuần</h3>
-            <p>450.200.000đ</p>
+            <p>{formatCurrency(summary.stats.weekly_revenue)}đ</p>
           </div>
           <div className="stat-card">
             <h3>Sản phẩm sắp hết hạn</h3>
-            <p style={{ color: 'var(--danger)' }}>12</p>
+            <p style={{ color: 'var(--danger)' }}>{summary.stats.expiring_products}</p>
           </div>
           <div className="stat-card">
             <h3>Đơn hàng mới</h3>
-            <p>38</p>
+            <p>{summary.stats.new_orders}</p>
           </div>
           <div className="stat-card">
             <h3>Nhập kho (Tháng)</h3>
-            <p>1.540 SP</p>
+            <p>{Number(summary.stats.monthly_import || 0).toLocaleString('vi-VN')} SP</p>
           </div>
         </div>
 
         {/* Biểu đồ */}
         <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', marginBottom: '25px' }}>
-          <h3 style={{ marginBottom: '15px', fontSize: '16px' }}>Lượng hàng đã bán theo tuần</h3>
-          <SalesChart />
+          <h3 style={{ marginBottom: '15px', fontSize: '16px' }}>{summary.chart.label || 'Xu hướng theo tuần'}</h3>
+          {summaryError && <p style={{ color: 'var(--danger)', marginBottom: '10px' }}>{summaryError}</p>}
+          <SalesChart labels={summary.chart.labels} values={summary.chart.values} label={summary.chart.label} />
         </div>
 
         {/* Hai bảng dữ liệu */}
@@ -165,21 +221,18 @@ const DashboardPage = () => {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>Paracetamol</td>
-                  <td>15/03/2026</td>
-                  <td><span className="badge badge-danger">Gần hết hạn</span></td>
-                </tr>
-                <tr>
-                  <td>Cetaphil 500ml</td>
-                  <td>20/05/2026</td>
-                  <td><span className="badge badge-warning">Sắp hết hạn</span></td>
-                </tr>
-                <tr>
-                  <td>Bio-Acimin</td>
-                  <td>12/06/2026</td>
-                  <td><span className="badge badge-warning">Sắp hết hạn</span></td>
-                </tr>
+                {summary.expiry_alerts.length === 0 && (
+                  <tr>
+                    <td colSpan="3">Không có cảnh báo hạn dùng.</td>
+                  </tr>
+                )}
+                {summary.expiry_alerts.map((item) => (
+                  <tr key={`alert-${item.product_id}`}>
+                    <td>{item.product_name}</td>
+                    <td>{formatDate(item.expiry_date)}</td>
+                    <td><span className={getAlertBadge(item.risk_level)}>{getAlertLabel(item.risk_level, item.days_left)}</span></td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

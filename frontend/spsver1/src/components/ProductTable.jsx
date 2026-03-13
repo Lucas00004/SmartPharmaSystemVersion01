@@ -11,7 +11,7 @@ const ProductTable = () => {
     const fetchProducts = async () => {
       try {
         // GỌI API: Đã sửa lại cú pháp fetch chuẩn xác
-        const response = await fetch('http://localhost:8000/api/product', {
+        const response = await fetch('http://localhost:5000/api/product', {
           method: 'GET',
           credentials: 'include', // <<-- CỰC KỲ QUAN TRỌNG: Mảnh ghép để khớp với backend
           headers: {
