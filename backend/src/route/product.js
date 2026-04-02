@@ -6,15 +6,14 @@ const upload = require('../middleware/upload'); // 1. Import middleware upload b
 
 // CREATE - Thêm upload.single('image') - Chỉ Admin mới được thêm
 // 'image' phải trùng với tên field bạn gửi từ FormData ở Frontend
-router.post('/', upload.single('image'), productController.create);
 
-// READ - Ai đã đăng nhập cũng có thể xem
-router.get('/', Middleware.verifyLogin, productController.read);
+// READ
+router.get('/', Middleware.verifyLogin, productController.getAllProduct);
 
-// UPDATE - Thêm upload.single('image') - Chỉ Admin mới được sửa
-router.put('/:id', upload.single('image'), productController.update);
+// UPDATE - Thêm upload.single('image')
+router.put('/:id',Middleware.verifyLogin, upload.single('image'), productController.updateProduct);
 
-// DELETE - Chỉ Admin mới được xóa
-router.delete('/:id', productController.delete);
+// DELETE
+router.delete('/:id', Middleware.verifyLogin, productController.deleteProduct);
 
 module.exports = router;

@@ -4,12 +4,12 @@ const Middleware = require('../middleware/authMiddleware');
 const historyActivityController = require('../controller/history_activity');
 
 // READ ALL (admin only)
-router.get('/', Middleware.verifyAdmin, historyActivityController.read);
+router.get('/', Middleware.verifyLogin, Middleware.verifyAdmin, historyActivityController.read);
 
 // READ BY USER (để lựa xem lại lịch sử hoạt động theo user_id)
-router.get('/user/:id', Middleware.verifyLogin, historyActivityController.getByUser);
+router.get('/user/:id', Middleware.verifyLogin,Middleware.verifyAdmin, historyActivityController.getByUser);
 
 // DELETE (optional - nếu muốn admin xoá log)
-router.delete('/:id', Middleware.verifyLogin, historyActivityController.delete);
+router.delete('/:id', Middleware.verifyLogin, Middleware.verifyAdmin, historyActivityController.delete);
 
 module.exports = router;

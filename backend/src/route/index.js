@@ -5,8 +5,8 @@ const product_categoryRouter = require('./product_category');
 const dashboardRouter = require('./dashboard');
 const adminRouter = require('./admin');
 const chatRouter = require('./chat');
-const importRouter = require('./import');
-const exportRouter = require('./export');
+const importRouter = require('./import_batch');
+const exportRouter = require('./export_batch');
 
 function route(app) {
     // Sau này có thêm route sản phẩm, hóa đơn... thì thêm vào đây
@@ -17,9 +17,8 @@ function route(app) {
     app.use('/api/dashboard', dashboardRouter);
     app.use('/api/admin', adminRouter);
     app.use('/api/chat', chatRouter);
-    app.use('/api/import', importRouter);
-    app.use('/api/export', exportRouter);
-
+    app.use('/api/import_batch', importRouter);
+    app.use('/api/export_batch', exportRouter);
 
 }
 

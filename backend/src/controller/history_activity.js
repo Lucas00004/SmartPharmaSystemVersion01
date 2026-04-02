@@ -1,4 +1,5 @@
 const db = require('../config/db');
+//Lấy dữ liệu từ bảng history_activity, có thể lọc theo user_id nếu cần
 
 const historyActivityController = {
 
