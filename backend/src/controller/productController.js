@@ -3,6 +3,43 @@ const { writeLog } = require('../util/history_activity');
 
 const productController = {
 
+    // API Tìm kiếm sản phẩm theo tên
+    searchProducts: async (req, res) => {
+        try {
+            // Lấy từ khóa người dùng gõ từ query string (VD: /api/products/search?keyword=para)
+            const { keyword } = req.query;
+
+            // Nếu không có từ khóa, trả về mảng rỗng
+            if (!keyword || keyword.trim() === '') {
+                return res.status(200).json([]);
+            }
+
+            // Thêm dấu % ở 2 đầu để tìm kiếm chứa ký tự (Contains)
+            const searchPattern = `%${keyword}%`;
+
+            // Dùng GROUP BY để gom nhóm các sản phẩm trùng tên lại thành 1 dòng duy nhất.
+            // Có thể JOIN thêm bảng category để hiển thị cho đẹp.
+            const query = `
+                SELECT 
+                    p.product_name,
+                    c.category_name
+                FROM product p
+                LEFT JOIN product_category c ON p.category_id = c.category_id
+                WHERE p.product_name LIKE ?
+                GROUP BY p.product_name, c.category_name
+                LIMIT 10
+            `;
+
+            const [results] = await db.query(query, [searchPattern]);
+            
+            res.status(200).json(results);
+
+        } catch (error) {
+            console.error("Lỗi khi tìm kiếm sản phẩm:", error);
+            res.status(500).json({ error: "Lỗi server khi tìm kiếm." });
+        }
+    },
+
     // READ PRODUCT (Dành cho User nhìn - Aggregation theo tên)
     getAllProduct: async (req, res) => {
         try {
