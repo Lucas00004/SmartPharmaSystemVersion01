@@ -29,14 +29,6 @@ const authMiddleware = {
             }
         };
     },
-    // 4. Chỉ Manager
-    verifyManager: (req, res, next) => {
-        if (req.session.user && req.session.user.role === 'manager') {
-            next();
-        } else {
-            return res.status(403).json("Yêu cầu quyền Manager!");
-        }
-    }
 };
 
 module.exports = authMiddleware;
