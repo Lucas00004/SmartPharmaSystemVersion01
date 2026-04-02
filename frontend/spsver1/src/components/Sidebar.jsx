@@ -76,6 +76,17 @@ const Sidebar = ({ toggleChat, activePage }) => {
       <Link to="/qlhh" className={`menu-item ${activePage === 'qlhh' ? 'active' : ''}`}>
         <i className="fa fa-box"></i> Quản lý hàng hóa
       </Link>
+
+      {/* --- PHẦN THÊM MỚI: QUẢN LÝ NHẬP KHO --- */}
+      <Link to="/qlnhapkho" className={`menu-item ${activePage === 'qlnhapkho' ? 'active' : ''}`}>
+        <i className="fa fa-file-import"></i> Quản lý nhập kho
+      </Link>
+
+      {/* --- PHẦN THÊM MỚI: QUẢN LÝ XUẤT KHO --- */}
+      <Link to="/qlxuatkho" className={`menu-item ${activePage === 'qlxuatkho' ? 'active' : ''}`}>
+        <i className="fa fa-file-export"></i> Quản lý xuất kho
+      </Link>
+      {/* -------------------------------------- */}
       
       <hr style={{ opacity: 0.1, margin: '15px 0' }} />
       
