@@ -7,6 +7,7 @@ const adminRouter = require('./admin');
 const chatRouter = require('./chat');
 const importRouter = require('./import_batch');
 const exportRouter = require('./export_batch');
+const unitRouter = require('./unit');
 
 function route(app) {
     // Sau này có thêm route sản phẩm, hóa đơn... thì thêm vào đây
@@ -19,6 +20,8 @@ function route(app) {
     app.use('/api/chat', chatRouter);
     app.use('/api/import_batch', importRouter);
     app.use('/api/export_batch', exportRouter);
+    app.use('/api/unit', unitRouter);
+
 
 }
 

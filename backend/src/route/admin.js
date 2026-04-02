@@ -13,6 +13,6 @@ router.post('/staff', auth.verifyLogin, auth.verifyAdmin, adminController.create
 router.put('/role', auth.verifyLogin, auth.verifyAdmin, adminController.updateRole);
 
 //CREATE BACKUP DATABASE FILE
-router.post('/backup', auth.verifyLogin, auth.verifyAdmin, adminController.createBackup);
+router.get('/backup', auth.verifyLogin, auth.verifyAdmin, adminController.createBackup);
 
 module.exports = router;
