@@ -1,22 +1,25 @@
 const db = require('../config/db');
 const { writeLog } = require('../util/history_activity');
 
-const importController = {
+const import_batchController = {
 
     // 1. READ ALL BATCHES (Lấy danh sách các Phiếu Nhập)
     getAllBatches: async (req, res) => {
         try {
+            // ĐÃ SỬA: Lấy supplier_id từ b, JOIN với bảng supplier để lấy supplier_name
             const sql = `
                 SELECT 
                     b.batch_id, 
                     b.batch_number, 
-                    b.manufacturer, 
+                    b.supplier_id, 
+                    s.supplier_name,
                     b.total_price, 
                     b.create_date,
                     b.user_id,
                     u.full_name as creator_name
                 FROM product_batch b
                 LEFT JOIN user u ON b.user_id = u.user_id
+                LEFT JOIN supplier s ON b.supplier_id = s.supplier_id
                 ORDER BY b.create_date DESC
             `;
             const [rows] = await db.query(sql);
@@ -35,11 +38,12 @@ const importController = {
                 SELECT 
                     d.*, 
                     p.product_code, p.product_name, p.category_id, p.selling_price, p.image, 
-                    p.description, p.active_ingredient, p.manufacturer as product_manufacturer, 
+                    p.description, p.active_ingredient, p.supplier_id, s.supplier_name AS product_supplier_name, 
                     p.storage_condition, u.unit_name
                 FROM product_batch_detail d
                 JOIN product p ON d.product_id = p.product_id
                 JOIN unit u ON d.unit_id = u.unit_id
+                LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
                 WHERE d.batch_id = ?
             `;
             const [rows] = await db.query(sql, [id]);
@@ -57,36 +61,36 @@ const importController = {
         try {
             await connection.beginTransaction();
 
-            const { batch_number, manufacturer, total_price, user_id, products } = req.body;
+            const { batch_number, supplier_id, total_price, user_id, products } = req.body;
 
             if (!products || !Array.isArray(products) || products.length === 0) {
                 await connection.rollback();
                 return res.status(400).json({ success: false, message: "Danh sách sản phẩm nhập không được trống!" });
             }
 
-            // BƯỚC 1: Insert vào bảng product_batch (Phiếu nhập tổng)
+            // BƯỚC 1: Insert vào bảng product_batch
             const sqlBatch = `
-                INSERT INTO product_batch (batch_number, manufacturer, total_price, user_id) 
+                INSERT INTO product_batch (batch_number, supplier_id, total_price, user_id) 
                 VALUES (?, ?, ?, ?)
             `;
             const [batchResult] = await connection.execute(sqlBatch, [
                 batch_number || null, 
-                manufacturer || null, 
+                supplier_id || null, 
                 total_price || 0, 
                 user_id
             ]);
             const newBatchId = batchResult.insertId;
 
-            // BƯỚC 2: Duyệt qua mảng sản phẩm từ UI gửi xuống
+            // BƯỚC 2: Duyệt qua mảng sản phẩm
             for (const item of products) {
                 if (!item.product_name || !item.unit_id) {
                     throw new Error("Mỗi sản phẩm nhập phải có tên sản phẩm (product_name) và đơn vị (unit_id).");
                 }
 
-                // 2.1: TẠO MỚI LUÔN 1 PRODUCT (Đúng ý tưởng gốc của bạn)
+                // 2.1: TẠO MỚI LUÔN 1 PRODUCT
                 const sqlProduct = `
                     INSERT INTO product 
-                    (product_code, product_name, category_id, selling_price, image, description, active_ingredient, manufacturer, storage_condition, unit_id) 
+                    (product_code, product_name, category_id, selling_price, image, description, active_ingredient, supplier_id, storage_condition, unit_id) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `;
                 const [productResult] = await connection.execute(sqlProduct, [
@@ -97,13 +101,13 @@ const importController = {
                     item.image || null, 
                     item.description || null, 
                     item.active_ingredient || null, 
-                    item.product_manufacturer || null, 
+                    item.supplier_id || null, 
                     item.storage_condition || null, 
                     item.unit_id
                 ]);
                 const newProductId = productResult.insertId;
 
-                // 2.2: Lấy ID Product vừa tạo đưa vào chi tiết phiếu nhập
+                // 2.2: Insert Detail
                 const sqlDetail = `
                     INSERT INTO product_batch_detail 
                     (batch_id, product_id, manufacture_date, expiry_date, import_price, quantity, unit_id) 
@@ -142,29 +146,29 @@ const importController = {
         try {
             await connection.beginTransaction();
 
-            const { id } = req.params; // batch_id
-            const { batch_number, manufacturer, total_price, products } = req.body;
+            const { id } = req.params; 
+            const { batch_number, supplier_id, total_price, products } = req.body;
 
-            // 1. Cập nhật thông tin phiếu nhập
+            // 1. Cập nhật thông tin phiếu nhập (Sửa manufacturer thành supplier_id)
             await connection.execute(`
-                UPDATE product_batch SET batch_number = ?, manufacturer = ?, total_price = ? WHERE batch_id = ?
-            `, [batch_number || null, manufacturer || null, total_price || 0, id]);
+                UPDATE product_batch SET batch_number = ?, supplier_id = ?, total_price = ? WHERE batch_id = ?
+            `, [batch_number || null, supplier_id || null, total_price || 0, id]);
 
-            // 2. Cập nhật từng chi tiết VÀ bản ghi product tương ứng (yêu cầu gửi kèm batch_detail_id và product_id)
+            // 2. Cập nhật từng chi tiết VÀ bản ghi product tương ứng
             if (products && Array.isArray(products)) {
                 for (const item of products) {
                     if (item.batch_detail_id && item.product_id) {
-                        // Update Product
+                        // Update Product (Sửa manufacturer thành supplier_id)
                         await connection.execute(`
                             UPDATE product SET 
-                                product_code = ?, product_name = ?, category_id = ?, selling_price = ?, image = ?, description = ?, active_ingredient = ?, manufacturer = ?, storage_condition = ?, unit_id = ?
+                                product_code = ?, product_name = ?, category_id = ?, selling_price = ?, image = ?, description = ?, active_ingredient = ?, supplier_id = ?, storage_condition = ?, unit_id = ?
                             WHERE product_id = ?
                         `, [
-                            item.product_code || null, item.product_name, item.category_id || null, item.selling_price || null, item.image || null, item.description || null, item.active_ingredient || null, item.product_manufacturer || null, item.storage_condition || null, item.unit_id, 
+                            item.product_code || null, item.product_name, item.category_id || null, item.selling_price || null, item.image || null, item.description || null, item.active_ingredient || null, item.supplier_id || null, item.storage_condition || null, item.unit_id, 
                             item.product_id
                         ]);
 
-                        // Update Batch Detail
+                        // Update Batch Detail (Không thay đổi)
                         await connection.execute(`
                             UPDATE product_batch_detail SET 
                                 manufacture_date = ?, expiry_date = ?, import_price = ?, quantity = ?, unit_id = ?
@@ -196,9 +200,9 @@ const importController = {
 
         try {
             await connection.beginTransaction();
-            const { id } = req.params; // batch_id
+            const { id } = req.params; 
 
-            // BƯỚC 1: Lấy tất cả product_id liên kết với phiếu nhập này
+            // BƯỚC 1: Lấy product_id
             const [details] = await connection.query(`SELECT product_id FROM product_batch_detail WHERE batch_id = ?`, [id]);
             if (details.length === 0) {
                 await connection.rollback();
@@ -207,13 +211,13 @@ const importController = {
 
             const productIds = details.map(d => d.product_id);
 
-            // BƯỚC 2: Xóa bảng con product_batch_detail
+            // BƯỚC 2: Xóa detail
             await connection.execute(`DELETE FROM product_batch_detail WHERE batch_id = ?`, [id]);
 
-            // BƯỚC 3: Xóa bảng cha product_batch
+            // BƯỚC 3: Xóa batch
             await connection.execute(`DELETE FROM product_batch WHERE batch_id = ?`, [id]);
 
-            // BƯỚC 4: Lặp và xóa toàn bộ Product đã được sinh ra từ phiếu này (Đúng logic gốc)
+            // BƯỚC 4: Xóa product
             for (const pid of productIds) {
                 await connection.execute(`DELETE FROM product WHERE product_id = ?`, [pid]);
             }
@@ -237,4 +241,4 @@ const importController = {
 
 };
 
-module.exports = importController;
+module.exports = import_batchController;

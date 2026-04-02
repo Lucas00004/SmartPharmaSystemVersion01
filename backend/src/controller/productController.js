@@ -1,18 +1,12 @@
 const db = require('../config/db');
 const { writeLog } = require('../util/history_activity');
 
-// Hàm kiểm tra xác thực Admin
-const checkAdmin = (req) => {
-    return req.session && req.session.user && req.session.user.role === 'admin';
-};
-
 const productController = {
 
     // READ PRODUCT (Dành cho User nhìn - Aggregation theo tên)
     getAllProduct: async (req, res) => {
         try {
-            // Sử dụng GROUP BY product_name để chỉ hiện 1 đại diện cho mỗi loại thuốc
-            // Sử dụng MAX hoặc MIN cho các trường khác để lấy dữ liệu đại diện
+            
             const sql = `
                 SELECT 
                     MAX(p.product_id) as product_id, 
@@ -20,7 +14,8 @@ const productController = {
                     MAX(p.image) as image, 
                     MAX(p.description) as description, 
                     MAX(p.selling_price) as selling_price, 
-                    MAX(p.manufacturer) as manufacturer, 
+                    MAX(p.supplier_id) as supplier_id, 
+                    MAX(s.supplier_name) as supplier_name, 
                     MAX(p.active_ingredient) as active_ingredient, 
                     MAX(p.storage_condition) as storage_condition,
                     MAX(c.category_name) as category_name,
@@ -28,6 +23,7 @@ const productController = {
                 FROM product p
                 LEFT JOIN product_category c ON p.category_id = c.category_id
                 LEFT JOIN unit u ON p.unit_id = u.unit_id
+                LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
                 GROUP BY p.product_name
                 ORDER BY p.product_name ASC
             `;
@@ -44,11 +40,6 @@ const productController = {
     // UPDATE PRODUCT (Cập nhật theo cấu trúc bảng mới)
     updateProduct: async (req, res) => {
         try {
-            // Kiểm tra xác thực Admin
-            if (!checkAdmin(req)) {
-                if (req.file) deleteFile(req.file.filename);
-                return res.status(403).json({ message: "Chỉ Admin mới có thể sửa sản phẩm!" });
-            }
 
             const { id } = req.params;
             const {
@@ -56,10 +47,10 @@ const productController = {
                 product_name,
                 category_id,
                 selling_price,
-                image, // Link ảnh từ Google
+                image, 
                 description,
                 active_ingredient,
-                manufacturer,
+                supplier_id, 
                 storage_condition,
                 unit_id
             } = req.body;
@@ -80,7 +71,7 @@ const productController = {
                     image = ?,
                     description = ?,
                     active_ingredient = ?,
-                    manufacturer = ?,
+                    supplier_id = ?, 
                     storage_condition = ?,
                     unit_id = ?
                 WHERE product_id = ?
@@ -94,7 +85,7 @@ const productController = {
                 image,
                 description,
                 active_ingredient,
-                manufacturer,
+                supplier_id || null, 
                 storage_condition,
                 unit_id,
                 id
@@ -115,10 +106,6 @@ const productController = {
     // DELETE PRODUCT (Hard delete)
     deleteProduct: async (req, res) => {
         try {
-            // Kiểm tra xác thực Admin
-            if (!checkAdmin(req)) {
-                return res.status(403).json({ message: "Chỉ Admin mới có thể xóa sản phẩm!" });
-            }
 
             const { id } = req.params;
             
