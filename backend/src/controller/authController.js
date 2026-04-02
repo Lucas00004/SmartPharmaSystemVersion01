@@ -113,8 +113,10 @@ const authController = {
                     sessionId: req.sessionID, 
                     cookieInfo: req.session.cookie, 
                     user: {
+                        user_id: user.user_id,
                         username: user.username,
-                        role: user.role
+                        role: user.role,
+                        full_name: user.full_name
                     }
                 });
             });
