@@ -1,10 +1,17 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+
+// Tạo thư mục uploads nếu chưa tồn tại
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Cấu hình lưu trữ
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/'); // Ảnh sẽ được lưu vào thư mục 'uploads'
+        cb(null, uploadsDir); // Ảnh sẽ được lưu vào thư mục 'uploads' (path tuyệt đối)
     },
     filename: (req, file, cb) => {
         // Đặt tên file: Thời gian hiện tại + tên gốc để tránh trùng lặp

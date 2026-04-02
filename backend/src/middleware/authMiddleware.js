@@ -13,8 +13,10 @@ const authMiddleware = {
     verifyAdmin: (req, res, next) => {
         // Chạy verifyLogin trước, sau đó mới check role
         if (req.session.user && req.session.user.role === 'admin') {
+            console.log("✅ Xác thực Admin thành công!");
             next();
         } else {
+            console.log("❌ Lỗi: Không có quyền Admin. User role:", req.session.user?.role);
             return res.status(403).json("Bạn không có quyền truy cập (Yêu cầu Admin)!");
         }
     },
@@ -29,14 +31,6 @@ const authMiddleware = {
             }
         };
     },
-    // 4. Chỉ Manager
-    verifyManager: (req, res, next) => {
-        if (req.session.user && req.session.user.role === 'manager') {
-            next();
-        } else {
-            return res.status(403).json("Yêu cầu quyền Manager!");
-        }
-    }
 };
 
 module.exports = authMiddleware;

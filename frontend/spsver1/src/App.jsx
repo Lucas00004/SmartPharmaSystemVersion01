@@ -8,6 +8,8 @@ import Register from './pages/Register';
 import DashboardPage from './pages/DashboardPage';
 import AdminPage from './pages/AdminPage';
 import HistoryPage from './pages/History';
+import SystemAdminPage from './pages/SystemAdminPage'; // Import SystemAdminPage
+import UserPage from './pages/UserPage'; // Import UserPage
 
 function App() {
   return (
@@ -21,6 +23,8 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/qlhh" element={<AdminPage />} />
+        <Route path="/system-admin" element={<SystemAdminPage />} /> {/* Thêm route cho SystemAdminPage */}
+        <Route path="/user" element={<UserPage />} /> {/* Thêm route cho UserPage */}
       </Routes>
     </Router>
   );

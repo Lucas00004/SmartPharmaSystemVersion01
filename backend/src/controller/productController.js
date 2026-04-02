@@ -12,21 +12,35 @@ const deleteFile = (fileName) => {
     }
 };
 
+// Hàm kiểm tra xác thực Admin
+const checkAdmin = (req) => {
+    return req.session && req.session.user && req.session.user.role === 'admin';
+};
+
 const productController = {
 
     // 1. CREATE PRODUCT
     create: async (req, res) => {
         try {
+            // Kiểm tra xác thực Admin
+            if (!checkAdmin(req)) {
+                if (req.file) deleteFile(req.file.filename);
+                return res.status(403).json({ message: "Chỉ Admin mới có thể thêm sản phẩm!" });
+            }
+
             const {
                 product_code,
                 product_name,
                 category_id,
-                unit,
+                unit_id,
                 purchase_price,
                 selling_price,
-                quantity,
                 expiry_date,
-                description
+                description,
+                active_ingredient,
+                manufacturer,
+                packing_style,
+                storage_condition
             } = req.body;
 
             // Ưu tiên file từ máy tính (multer), nếu không có thì lấy link từ body
@@ -34,42 +48,29 @@ const productController = {
 
             const sql = `
                 INSERT INTO product
-                (product_code, product_name, category_id, unit, purchase_price, selling_price, quantity, expiry_date, image, description, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                (product_code, product_name, category_id, unit_id, purchase_price, selling_price, 
+                 expiry_date, image, description, active_ingredient, manufacturer, 
+                 packing_style, storage_condition)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
 
             const [result] = await db.query(sql, [
                 product_code,
                 product_name,
-                category_id,
-                unit,
-                purchase_price,
-                selling_price,
-                quantity || 0,
+                category_id || null,
+                unit_id || null,
+                purchase_price || 0,
+                selling_price || 0,
                 expiry_date || null,
                 image,
-                description
+                description,
+                active_ingredient || null,
+                manufacturer || null,
+                packing_style || null,
+                storage_condition || null
             ]);
 
             const newProductId = result.insertId;
-
-            // Nếu tạo mới sản phẩm mà có khai báo số lượng nhập ban đầu lớn hơn 0, ta cũng ghi nhận vào lịch sử nhập kho
-            if (quantity && Number(quantity) > 0) {
-                const insertHistorySql = `
-                    INSERT INTO history_import
-                    (product_id, product_name, category_id, unit, purchase_price, quantity, image, description)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'Nhập kho ban đầu khi tạo sản phẩm')
-                `;
-                await db.query(insertHistorySql, [
-                    newProductId,
-                    product_name,
-                    category_id,
-                    unit,
-                    purchase_price,
-                    quantity,
-                    image
-                ]);
-            }
 
             res.status(201).json({
                 message: "Thêm sản phẩm thành công!",
@@ -90,17 +91,21 @@ const productController = {
     // 2. READ PRODUCT
     read: async (req, res) => {
         try {
+            console.log("🔍 API GET /api/product được gọi");
             const sql = `
-                SELECT p.*, c.category_name
+                SELECT p.*, c.category_name, u.unit_name
                 FROM product p
-                LEFT JOIN product_category c
-                ON p.category_id = c.category_id
-                WHERE p.status = 1
+                LEFT JOIN product_category c ON p.category_id = c.category_id
+                LEFT JOIN unit u ON p.unit_id = u.unit_id
                 ORDER BY p.created_at DESC
             `;
+            console.log("📝 SQL Query:", sql);
             const [rows] = await db.query(sql);
+            console.log("✅ Lấy được", rows.length, "sản phẩm");
             res.status(200).json(rows);
         } catch (error) {
+            console.error("❌ Lỗi trong READ product:", error.message);
+            console.error("📋 Stack:", error.stack);
             res.status(500).json({ error: error.message });
         }
     },
@@ -108,17 +113,26 @@ const productController = {
     // 3. UPDATE PRODUCT
     update: async (req, res) => {
         try {
+            // Kiểm tra xác thực Admin
+            if (!checkAdmin(req)) {
+                if (req.file) deleteFile(req.file.filename);
+                return res.status(403).json({ message: "Chỉ Admin mới có thể sửa sản phẩm!" });
+            }
+
             const { id } = req.params;
             const {
                 product_code,
                 product_name,
                 category_id,
-                unit,
+                unit_id,
                 purchase_price,
                 selling_price,
-                quantity,
                 expiry_date,
-                description
+                description,
+                active_ingredient,
+                manufacturer,
+                packing_style,
+                storage_condition
             } = req.body;
 
             // Bước A: Lấy thông tin sản phẩm cũ để biết tên file ảnh cũ
@@ -141,27 +155,33 @@ const productController = {
                     product_code = ?,
                     product_name = ?,
                     category_id = ?,
-                    unit = ?,
+                    unit_id = ?,
                     purchase_price = ?,
                     selling_price = ?,
-                    quantity = ?,
                     expiry_date = ?,
                     image = ?,
-                    description = ?
+                    description = ?,
+                    active_ingredient = ?,
+                    manufacturer = ?,
+                    packing_style = ?,
+                    storage_condition = ?
                 WHERE product_id = ?
             `;
 
             const [result] = await db.query(sql, [
                 product_code,
                 product_name,
-                category_id,
-                unit,
-                purchase_price,
-                selling_price,
-                quantity,
+                category_id || null,
+                unit_id || null,
+                purchase_price || 0,
+                selling_price || 0,
                 expiry_date || null,
                 finalImage,
                 description,
+                active_ingredient || null,
+                manufacturer || null,
+                packing_style || null,
+                storage_condition || null,
                 id
             ]);
 
@@ -183,6 +203,11 @@ const productController = {
     // 4. DELETE PRODUCT (Hard delete)
     delete: async (req, res) => {
         try {
+            // Kiểm tra xác thực Admin
+            if (!checkAdmin(req)) {
+                return res.status(403).json({ message: "Chỉ Admin mới có thể xóa sản phẩm!" });
+            }
+
             const { id } = req.params;
             
             // Bước 1: Lấy tên file ảnh để chuẩn bị xóa ảnh khỏi ổ cứng

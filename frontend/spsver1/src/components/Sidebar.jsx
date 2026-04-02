@@ -76,12 +76,6 @@ const Sidebar = ({ toggleChat, activePage }) => {
       <Link to="/qlhh" className={`menu-item ${activePage === 'qlhh' ? 'active' : ''}`}>
         <i className="fa fa-box"></i> Quản lý hàng hóa
       </Link>
-
-      {user && user.role === 'admin' && (
-        <Link to="/history" className={`menu-item ${activePage === 'history' ? 'active' : ''}`}>
-          <i className="fa fa-history"></i> Lịch sử
-        </Link>
-      )}
       
       <hr style={{ opacity: 0.1, margin: '15px 0' }} />
       

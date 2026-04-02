@@ -38,7 +38,7 @@ const authController = {
 
             await db.query(
                 'INSERT INTO user (username, password, full_name, role) VALUES (?, ?, ?, ?)',
-                [username, hashedPassword, full_name, role || 'staff']
+                [username, hashedPassword, full_name, role || 'user']
             );
 
             res.status(201).json({ message: "Đăng ký tài khoản thành công!" });
