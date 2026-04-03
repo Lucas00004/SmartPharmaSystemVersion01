@@ -4,6 +4,12 @@ import Sidebar from '../components/Sidebar';
 import Chatbot from '../components/Chatbot';
 import './AdminPage.css';
 import { logErrorToBackend } from '../utils/errorTracking';
+import { 
+  exportPurchaseHistoryToExcel, 
+  exportImportBatchesToExcel, 
+  exportExportTicketsToExcel,
+  exportComprehensiveReportToExcel 
+} from '../utils/excelExport';
 
 const AdminPage = () => {
   const location = useLocation(); // Khởi tạo useLocation để lấy đường dẫn hiện tại
@@ -884,7 +890,13 @@ const AdminPage = () => {
   return (
     <div className="admin-body">
       {/* TRUYỀN prop currentSidebarPage XUỐNG ĐỂ SÁNG ĐÚNG MENU */}
-      <Sidebar toggleChat={toggleChat} activePage={currentSidebarPage} />
+      <Sidebar 
+        toggleChat={toggleChat} 
+        activePage={currentSidebarPage}
+        purchaseHistory={purchaseHistory}
+        importBatches={importBatches}
+        exportTickets={exportTickets}
+      />
       
       <div className="main-admin">
         <div className="header-row">
@@ -977,6 +989,23 @@ const AdminPage = () => {
         {/* TAB QUẢN LÝ NHẬP KHO */}
         {activeTab === 'import' && (
           <div className="table-wrap">
+            <div style={{ marginBottom: '15px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => exportImportBatchesToExcel(importBatches)}
+                style={{
+                  background: '#70AD47',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '14px'
+                }}
+              >
+                📊 Xuất Excel
+              </button>
+            </div>
             <table className="products-table">
               <thead>
                 <tr>
@@ -1010,6 +1039,23 @@ const AdminPage = () => {
         {/* TAB LỊCH SỬ MUA HÀNG */}
         {activeTab === 'history' && (
           <div className="table-wrap">
+            <div style={{ marginBottom: '15px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => exportPurchaseHistoryToExcel(purchaseHistory)}
+                style={{
+                  background: '#4472C4',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '14px'
+                }}
+              >
+                📊 Xuất Excel
+              </button>
+            </div>
             <table className="products-table">
               <thead>
                 <tr>
@@ -1052,6 +1098,23 @@ const AdminPage = () => {
         {/* TAB QUẢN LÝ XUẤT KHO */}
         {activeTab === 'export' && (
           <div className="table-wrap">
+            <div style={{ marginBottom: '15px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => exportExportTicketsToExcel(exportTickets)}
+                style={{
+                  background: '#C00000',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '14px'
+                }}
+              >
+                📊 Xuất Excel
+              </button>
+            </div>
             <table className="products-table">
               <thead>
                 <tr>
@@ -1086,7 +1149,13 @@ const AdminPage = () => {
 
       </div>
 
-      <Chatbot isOpen={isChatOpen} toggleChat={toggleChat} />
+      <Chatbot 
+        isOpen={isChatOpen} 
+        toggleChat={toggleChat}
+        purchaseHistory={purchaseHistory}
+        importBatches={importBatches}
+        exportTickets={exportTickets}
+      />
 
       {/* MODAL THÊM / SỬA SẢN PHẨM */}
       {showModal && (

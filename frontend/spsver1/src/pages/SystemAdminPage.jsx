@@ -13,6 +13,7 @@ const SystemAdminPage = () => {
   // ================= STATE DỮ LIỆU TỪ DATABASE =================
   const [categories, setCategories] = useState([]);
   const [units, setUnits] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [historyLogs, setHistoryLogs] = useState([]);
   const [productHistoryLogs, setProductHistoryLogs] = useState([]);
   const [users, setUsers] = useState([]);
@@ -26,6 +27,7 @@ const SystemAdminPage = () => {
   // ================= STATE CHO FORM THÊM/SỬA =================
   const [catForm, setCatForm] = useState({ id: null, name: '', desc: '' });
   const [unitForm, setUnitForm] = useState({ id: null, name: '' });
+  const [supplierForm, setSupplierForm] = useState({ id: null, name: '', phone: '', email: '', address: '' });
   const [userForm, setUserForm] = useState({ id: null, username: '', password: '', full_name: '', role: 'user' });
   const [isEditingUser, setIsEditingUser] = useState(false);
 
@@ -50,6 +52,16 @@ const SystemAdminPage = () => {
       setUnits(Array.isArray(res.data) ? res.data : res.data.data || []);
     } catch (error) {
       console.error('Lỗi khi lấy dữ liệu đơn vị:', error);
+    }
+  };
+
+  const fetchSuppliers = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/supplier`, { withCredentials: true });
+      setSuppliers(Array.isArray(res.data) ? res.data : res.data.data || []);
+      console.log("✅ Lấy danh sách nhà cung cấp thành công, số bản ghi:", res.data?.length || 0);
+    } catch (error) {
+      console.error('❌ Lỗi khi lấy danh sách nhà cung cấp:', error.response?.data || error.message);
     }
   };
 
@@ -111,6 +123,7 @@ const SystemAdminPage = () => {
   useEffect(() => {
     fetchCategories();
     fetchUnits();
+    fetchSuppliers();
     fetchHistoryLogs();
     fetchUsers();
     fetchProductHistoryLogs();
@@ -198,6 +211,78 @@ const SystemAdminPage = () => {
     id: unit.unit_id || unit.id,
     name: unit.unit_name || unit.name
   });
+
+  // ================= HÀM XỬ LÝ NHÀ CUNG CẤP =================
+  const handleSaveSupplier = async (e) => {
+    e.preventDefault();
+    try {
+      if (!supplierForm.name || supplierForm.name.trim() === '') {
+        alert('❌ Vui lòng nhập tên nhà cung cấp!');
+        return;
+      }
+
+      if (supplierForm.id) {
+        // UPDATE
+        await axios.put(
+          `${API_BASE}/api/supplier/${supplierForm.id}`,
+          {
+            supplier_name: supplierForm.name,
+            phone: supplierForm.phone || null,
+            email: supplierForm.email || null,
+            address: supplierForm.address || null
+          },
+          { withCredentials: true }
+        );
+        alert('✅ Cập nhật nhà cung cấp thành công!');
+      } else {
+        // CREATE
+        await axios.post(
+          `${API_BASE}/api/supplier`,
+          {
+            supplier_name: supplierForm.name,
+            phone: supplierForm.phone || null,
+            email: supplierForm.email || null,
+            address: supplierForm.address || null
+          },
+          { withCredentials: true }
+        );
+        alert('✅ Thêm nhà cung cấp thành công!');
+      }
+      
+      fetchSuppliers();
+      setSupplierForm({ id: null, name: '', phone: '', email: '', address: '' });
+    } catch (error) {
+      console.error('❌ Lỗi khi lưu nhà cung cấp:', error.response?.data);
+      alert(`❌ Lỗi: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
+  const handleDeleteSupplier = async (supplierId, supplierName) => {
+    if (window.confirm(`Bạn có chắc muốn xóa nhà cung cấp "${supplierName}" không?`)) {
+      try {
+        await axios.delete(`${API_BASE}/api/supplier/${supplierId}`, { withCredentials: true });
+        alert('✅ Xóa nhà cung cấp thành công!');
+        fetchSuppliers();
+      } catch (error) {
+        console.error('❌ Lỗi khi xóa nhà cung cấp:', error.response?.data);
+        alert(`❌ Lỗi: ${error.response?.data?.message || error.message}`);
+      }
+    }
+  };
+
+  const handleEditSupplier = (supplier) => {
+    setSupplierForm({
+      id: supplier.supplier_id || supplier.id,
+      name: supplier.supplier_name || supplier.name,
+      phone: supplier.phone || '',
+      email: supplier.email || '',
+      address: supplier.address || ''
+    });
+  };
+
+  const handleCancelEditSupplier = () => {
+    setSupplierForm({ id: null, name: '', phone: '', email: '', address: '' });
+  };
 
   // ================= HÀM XỬ LÝ NGƯỜI DÙNG =================
   const handleSaveUser = async (e) => {
@@ -415,6 +500,9 @@ const SystemAdminPage = () => {
           </li>
           <li className={activeTab === 'catalog' ? 'active' : ''} onClick={() => setActiveTab('catalog')}>
             <i className="fa-solid fa-sitemap"></i> Danh mục & Đơn vị
+          </li>
+          <li className={activeTab === 'supplier' ? 'active' : ''} onClick={() => setActiveTab('supplier')}>
+            <i className="fa-solid fa-truck"></i> Quản lý Nhà cung cấp
           </li>
           <li className={activeTab === 'history_login' ? 'active' : ''} onClick={() => setActiveTab('history_login')}>
             <i className="fa-solid fa-arrow-right-to-bracket"></i> Lịch sử Đăng nhập
@@ -828,6 +916,105 @@ const SystemAdminPage = () => {
               </table>
             </div>
 
+          </div>
+        )}
+
+        {/* TAB: QUẢN LÝ NHÀ CUNG CẤP */}
+        {activeTab === 'supplier' && (
+          <div className="card">
+            <h3><i className="fa-solid fa-truck"></i> Quản lý Nhà cung cấp</h3>
+            
+            {/* FORM THÊM/SỬA */}
+            <form className="admin-form" onSubmit={handleSaveSupplier} style={{marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '5px'}}>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px'}}>
+                <input 
+                  type="text" 
+                  placeholder="Tên nhà cung cấp *"
+                  value={supplierForm.name}
+                  onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})}
+                  required
+                />
+                <input 
+                  type="tel" 
+                  placeholder="Số điện thoại"
+                  value={supplierForm.phone}
+                  onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})}
+                />
+              </div>
+              
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px'}}>
+                <input 
+                  type="email" 
+                  placeholder="Email"
+                  value={supplierForm.email}
+                  onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})}
+                />
+                <input 
+                  type="text" 
+                  placeholder="Địa chỉ"
+                  value={supplierForm.address}
+                  onChange={(e) => setSupplierForm({...supplierForm, address: e.target.value})}
+                />
+              </div>
+
+              <div style={{display: 'flex', gap: '10px'}}>
+                <button type="submit" className="btn btn-primary">
+                  {supplierForm.id ? '✏️ Cập nhật' : '➕ Thêm nhà cung cấp'}
+                </button>
+                {supplierForm.id && (
+                  <button 
+                    type="button" 
+                    onClick={handleCancelEditSupplier}
+                    className="btn btn-secondary"
+                  >
+                    ❌ Hủy
+                  </button>
+                )}
+              </div>
+            </form>
+
+            {/* BẢNG DANH SÁCH NHÀ CUNG CẤP */}
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Tên nhà cung cấp</th>
+                  <th>Số điện thoại</th>
+                  <th>Email</th>
+                  <th>Địa chỉ</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+                {suppliers.length > 0 ? suppliers.map((supplier, index) => (
+                  <tr key={supplier.supplier_id || index}>
+                    <td>{supplier.supplier_id}</td>
+                    <td><strong>{supplier.supplier_name}</strong></td>
+                    <td>{supplier.phone || '-'}</td>
+                    <td>{supplier.email || '-'}</td>
+                    <td>{supplier.address || '-'}</td>
+                    <td>
+                      <div className="action-buttons">
+                        <button 
+                          onClick={() => handleEditSupplier(supplier)} 
+                          className="btn btn-secondary btn-sm"
+                        >
+                          Sửa
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteSupplier(supplier.supplier_id, supplier.supplier_name)} 
+                          className="btn btn-danger btn-sm"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr><td colSpan="6" style={{textAlign: "center"}}>📭 Chưa có nhà cung cấp nào trong Database</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
         )}
 
