@@ -21,12 +21,19 @@ const productController = {
             // Có thể JOIN thêm bảng category để hiển thị cho đẹp.
             const query = `
                 SELECT 
+                    MAX(p.product_id) as product_id,
                     p.product_name,
-                    c.category_name
+                    MAX(p.category_id) as category_id,
+                    MAX(c.category_name) as category_name,
+                    MAX(p.image) as image,
+                    MAX(p.selling_price) as selling_price,
+                    MAX(p.description) as description,
+                    MAX(p.active_ingredient) as active_ingredient,
+                    MAX(p.storage_condition) as storage_condition
                 FROM product p
                 LEFT JOIN product_category c ON p.category_id = c.category_id
                 WHERE p.product_name LIKE ?
-                GROUP BY p.product_name, c.category_name
+                GROUP BY p.product_name
                 LIMIT 10
             `;
 
@@ -47,7 +54,10 @@ const productController = {
             const sql = `
                 SELECT 
                     MAX(p.product_id) as product_id, 
-                    p.product_name, 
+                    p.product_name,
+                    MAX(p.category_id) as category_id,
+                    MAX(p.unit_id) as unit_id,
+                    MAX(p.product_code) as product_code,
                     MAX(p.image) as image, 
                     MAX(p.description) as description, 
                     MAX(p.selling_price) as selling_price, 

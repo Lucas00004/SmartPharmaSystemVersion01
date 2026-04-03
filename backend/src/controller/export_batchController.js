@@ -6,7 +6,7 @@ const exportController = {
     // 1. Lấy các sản phẩm có sẵn trong kho (Gom nhóm để Staff chọn)
     getAvailableProduct: async (req, res) => {
         try {
-            // ĐÃ SỬA: Join thêm bảng unit để lấy thông tin đơn vị tính cho FE hiển thị
+            // Lấy danh sách sản phẩm có tồn kho & chưa hết hạn, JOIN unit để lấy đơn vị tính
             const query = `
                 SELECT 
                     p.product_id, 
@@ -19,14 +19,15 @@ const exportController = {
                 JOIN product_batch pb ON p.product_id = pb.product_id
                 LEFT JOIN unit u ON p.unit_id = u.unit_id
                 WHERE pb.quantity > 0 AND pb.expiry_date >= CURDATE()
-                GROUP BY p.product_id, u.unit_id, u.unit_name
+                GROUP BY p.product_id, p.product_code, p.product_name, u.unit_id, u.unit_name
                 HAVING total_available > 0
+                ORDER BY p.product_name ASC
             `;
             const [products] = await db.query(query);
             res.status(200).json({ success: true, data: products });
         } catch (error) {
             console.error("Lỗi getAvailableProduct:", error);
-            res.status(500).json({ success: false, message: 'Lỗi server' });
+            res.status(500).json({ success: false, message: 'Lỗi server: ' + error.message });
         }
     },
 
@@ -34,9 +35,16 @@ const exportController = {
     getAllBatches: async (req, res) => {
         try {
             const query = `
-                SELECT et.*, u.full_name, u.username 
+                SELECT 
+                    et.*, 
+                    u.full_name, 
+                    u.username,
+                    COALESCE(SUM(etd.export_quantity), 0) as total_quantity,
+                    DATE_FORMAT(et.created_at, '%d/%m/%Y %H:%i:%s') as created_at_formatted
                 FROM export_ticket et
                 JOIN user u ON et.user_id = u.user_id
+                LEFT JOIN export_ticket_detail etd ON et.ticket_id = etd.ticket_id
+                GROUP BY et.ticket_id, et.total_price, et.note, et.customer, et.user_id, et.created_at, u.full_name, u.username
                 ORDER BY et.created_at DESC
             `;
             const [tickets] = await db.query(query);
@@ -47,9 +55,68 @@ const exportController = {
         }
     },
 
-    // 3. Tạo lô xuất mới - Có thể chọn nhiều sản phẩm 1 lần (Áp dụng thuật toán FEFO - Trừ lùi)
+    // 2.5. Lấy chi tiết 1 phiếu xuất (xem chi tiết)
+    getExportBatchDetail: async (req, res) => {
+        const { id } = req.params; // ticket_id
+        try {
+            // Lấy thông tin phiếu xuất
+            const [ticketData] = await db.query(
+                `SELECT 
+                    et.ticket_id, et.total_price, et.note, et.customer, et.user_id,
+                    DATE_FORMAT(et.created_at, '%d/%m/%Y %H:%i:%s') as created_at,
+                    u.full_name, u.username
+                 FROM export_ticket et
+                 JOIN user u ON et.user_id = u.user_id
+                 WHERE et.ticket_id = ?`,
+                [id]
+            );
+
+            if (ticketData.length === 0) {
+                return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu xuất' });
+            }
+
+            const ticket = ticketData[0];
+
+            // Lấy chi tiết sản phẩm trong phiếu xuất - JOIN để lấy tên sản phẩm
+            const [details] = await db.query(
+                `SELECT 
+                    etd.batch_id, 
+                    etd.export_quantity, 
+                    etd.export_price, 
+                    etd.unit_id,
+                    pbd.product_id,
+                    p.product_name,
+                    u.unit_name
+                 FROM export_ticket_detail etd
+                 LEFT JOIN product_batch_detail pbd ON etd.batch_id = pbd.batch_id
+                 LEFT JOIN product p ON pbd.product_id = p.product_id
+                 LEFT JOIN unit u ON etd.unit_id = u.unit_id
+                 WHERE etd.ticket_id = ?`,
+                [id]
+            );
+
+            res.status(200).json({ 
+                success: true, 
+                ticket: ticket,
+                details: details 
+            });
+        } catch (error) {
+            console.error("Lỗi getExportBatchDetail:", error);
+            res.status(500).json({ success: false, message: 'Lỗi server: ' + error.message });
+        }
+    },
+
+    // 3. Tạo lô xuất mới - Chọn 1 batch cụ thể, sau đó chọn sản phẩm trong batch đó
+    // Backend chỉ trừ từ batch được chọn (không áp dụng FEFO trên toàn kho)
     createExportBatch: async (req, res) => {
-        const { user_id, note, customer, products } = req.body;
+        // Lấy user_id từ session (tự động lấy khi middleware xác thực)
+        const user_id = req.session?.user?.id;
+        const { note, customer, products, batch_id } = req.body;
+        
+        if (!user_id) {
+            return res.status(401).json({ success: false, message: 'Không tìm thấy user_id. Vui lòng đăng nhập lại!' });
+        }
+
         const connection = await db.getConnection();
 
         try {
@@ -66,49 +133,37 @@ const exportController = {
             );
             const ticket_id = ticketResult.insertId;
 
+            // Xử lý từng sản phẩm được chọn
             for (const item of products) {
-                let remainingQuantityToExport = item.export_quantity;
-
-                const [batches] = await connection.query(
-                    `SELECT batch_id, quantity 
-                     FROM product_batch 
-                     WHERE product_id = ? AND quantity > 0 
-                     ORDER BY expiry_date ASC`,
-                    [item.product_id]
+                // Kiểm tra số lượng có sẵn trong batch được chọn
+                const [batchProductCheck] = await connection.query(
+                    `SELECT quantity FROM product_batch_detail 
+                     WHERE batch_id = ? AND product_id = ?`,
+                    [batch_id, item.product_id]
                 );
 
-                const totalInStock = batches.reduce((sum, b) => sum + b.quantity, 0);
-                if (totalInStock < remainingQuantityToExport) {
-                    throw new Error(`Sản phẩm ID ${item.product_id} không đủ số lượng trong kho.`);
+                if (batchProductCheck.length === 0) {
+                    throw new Error(`Sản phẩm ID ${item.product_id} không có trong batch ID ${batch_id}.`);
                 }
 
-                for (const batch of batches) {
-                    if (remainingQuantityToExport <= 0) break;
-
-                    let quantityToTakeFromThisBatch = 0;
-
-                    if (batch.quantity >= remainingQuantityToExport) {
-                        quantityToTakeFromThisBatch = remainingQuantityToExport;
-                        remainingQuantityToExport = 0;
-                    } else {
-                        quantityToTakeFromThisBatch = batch.quantity;
-                        remainingQuantityToExport -= batch.quantity;
-                    }
-
-                    const newBatchQuantity = batch.quantity - quantityToTakeFromThisBatch;
-                    await connection.query(
-                        `UPDATE product_batch SET quantity = ? WHERE batch_id = ?`,
-                        [newBatchQuantity, batch.batch_id]
-                    );
-
-                    // ĐÃ SỬA: Thêm unit_id vào câu lệnh INSERT chi tiết phiếu xuất
-                    // Giả định Frontend sẽ gửi kèm unit_id trong từng item của mảng products
-                    await connection.query(
-                        `INSERT INTO export_ticket_detail (ticket_id, batch_id, export_quantity, export_price, unit_id) 
-                         VALUES (?, ?, ?, ?, ?)`,
-                        [ticket_id, batch.batch_id, quantityToTakeFromThisBatch, item.export_price, item.unit_id]
-                    );
+                const availableQty = batchProductCheck[0].quantity;
+                if (availableQty < item.export_quantity) {
+                    throw new Error(`Sản phẩm ID ${item.product_id} chỉ có ${availableQty} cái, bạn yêu cầu xuất ${item.export_quantity} cái.`);
                 }
+
+                // Trừ số lượng từ product_batch_detail
+                await connection.query(
+                    `UPDATE product_batch_detail SET quantity = quantity - ? 
+                     WHERE batch_id = ? AND product_id = ?`,
+                    [item.export_quantity, batch_id, item.product_id]
+                );
+
+                // Lưu chi tiết xuất vào export_ticket_detail
+                await connection.query(
+                    `INSERT INTO export_ticket_detail (ticket_id, batch_id, export_quantity, export_price, unit_id) 
+                     VALUES (?, ?, ?, ?, ?)`,
+                    [ticket_id, batch_id, item.export_quantity, item.export_price, item.unit_id]
+                );
             }
 
             await writeLog(req, 'CREATE', 'export_ticket', ticket_id, `Tạo phiếu xuất kho ID: ${ticket_id} cho khách hàng: ${customer || 'Khách lẻ'}`);
@@ -153,18 +208,28 @@ const exportController = {
         try {
             await connection.beginTransaction();
 
+            // Lấy danh sách batch_id và export_quantity từ export_ticket_detail
             const [details] = await connection.query(
                 `SELECT batch_id, export_quantity FROM export_ticket_detail WHERE ticket_id = ?`,
                 [id]
             );
 
+            // Với mỗi batch_id, hoàn kho vào product_batch_detail
             for (const detail of details) {
+                // Lưu ý: batch_id ở export_ticket_detail tương ứng với batch_id từ product_batch_detail
+                // Nhưng chúng ta cần cẩn thận vì có thể có cùng 1 batch_id nhưng khác product_id
+                // Trong trường hợp này, chúng ta sẽ hoàn tất cả sản phẩm trong batch đó
                 await connection.query(
-                    `UPDATE product_batch SET quantity = quantity + ? WHERE batch_id = ?`,
+                    `UPDATE product_batch_detail SET quantity = quantity + ? 
+                     WHERE batch_id = ?`,
                     [detail.export_quantity, detail.batch_id]
                 );
             }
 
+            // Xóa chi tiết phiếu xuất
+            await connection.query(`DELETE FROM export_ticket_detail WHERE ticket_id = ?`, [id]);
+            
+            // Xóa phiếu xuất
             await connection.query(`DELETE FROM export_ticket WHERE ticket_id = ?`, [id]);
 
             await writeLog(req, 'DELETE', 'export_ticket', id, `Hủy phiếu xuất và hoàn kho ID: ${id}`);

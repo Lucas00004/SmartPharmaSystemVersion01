@@ -19,50 +19,39 @@ const userHistoryController = {
         }
     },
 
-    // 2. XỬ LÝ MUA HÀNG THEO PRODUCT_NAME (DÒ TÌM NHIỀU ID & TRỪ FEFO)
+    // 2. XỬ LÝ MUA HÀNG THEO PRODUCT_ID (TRỪ FEFO & LƯU USER_HISTORY)
     createPurchase: async (req, res) => {
         const connection = await db.getConnection();
         await connection.beginTransaction();
 
         try {
-            // Lấy unit_name thay vì unit_id từ dữ liệu user gửi lên
-            const { product_name, unit_name, quantity, address, total_price, payment } = req.body;
+            // Nhận product_id trực tiếp từ frontend
+            const { product_id, unit_name, quantity, address, total_price, payment } = req.body;
             const user_id = req.session.user.id;
             let amountToSubtract = parseInt(quantity);
 
-            // BƯỚC 1: Tìm tất cả product_id có chung product_name
-            const [products] = await connection.query(
-                'SELECT product_id FROM product WHERE product_name = ?',
-                [product_name]
-            );
-
-            if (products.length === 0) {
-                await connection.rollback();
-                return res.status(404).json({ message: "Không tìm thấy sản phẩm có tên này!" });
-            }
-
-            const productIds = products.map(p => p.product_id);
-
-            // BƯỚC 2: Tìm tất cả các lô thuộc danh sách productIds, sắp xếp theo ngày hết hạn gần nhất (FEFO)
+            // BƯỚC 1: Tìm tất cả các lô của product_id này, sắp xếp theo ngày hết hạn gần nhất (FEFO)
             const [batches] = await connection.query(
                 `SELECT batch_detail_id, product_id, quantity as stock, expiry_date 
                  FROM product_batch_detail 
-                 WHERE product_id IN (?) AND quantity > 0 
+                 WHERE product_id = ? AND quantity > 0 
                  ORDER BY expiry_date ASC`,
-                [productIds]
+                [product_id]
             );
+
+            if (batches.length === 0) {
+                await connection.rollback();
+                return res.status(400).json({ message: "Sản phẩm này không có tồn kho!" });
+            }
 
             // Kiểm tra tổng số lượng tồn kho của tất cả các lô
             const totalStock = batches.reduce((sum, b) => sum + b.stock, 0);
             if (totalStock < amountToSubtract) {
                 await connection.rollback();
-                return res.status(400).json({ message: `Tổng kho không đủ! Hiện còn: ${totalStock} ${unit_name}` });
+                return res.status(400).json({ message: `Tồn kho không đủ! Hiện còn: ${totalStock} ${unit_name}` });
             }
 
-            // Mảng để lưu lại các lô bị trừ
-            let trackingPurchases = [];
-
-            // BƯỚC 3: Trừ dần số lượng vào từng lô theo nguyên tắc FEFO
+            // BƯỚC 2: Trừ dần số lượng vào từng lô theo nguyên tắc FEFO
             for (let batch of batches) {
                 if (amountToSubtract <= 0) break;
 
@@ -73,23 +62,15 @@ const userHistoryController = {
                     [take, batch.batch_detail_id]
                 );
 
-                trackingPurchases.push({
-                    product_id: batch.product_id,
-                    quantity: take
-                });
-
                 amountToSubtract -= take;
             }
 
-            // BƯỚC 4: Lưu vào user_history
-            // Sử dụng trường unit_name thay vì unit_id như thiết kế DB mới của bạn
-            // Vẫn giữ nguyên logic lưu product_id của lô đầu tiên được "chạm" vào
+            // BƯỚC 3: Lưu vào user_history
             await connection.query(
                 `INSERT INTO user_history 
                 (user_id, product_id, unit_name, quantity, address, total_price, payment, date) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-                // ĐÃ THÊM user_id VÀO ĐẦU MẢNG
-                [user_id, trackingPurchases[0].product_id, unit_name, quantity, address, total_price, payment]
+                [user_id, product_id, unit_name, quantity, address, total_price, payment]
             );
 
             await connection.commit();
@@ -120,6 +101,7 @@ const userHistoryController = {
                     uh.total_price,
                     uh.payment,
                     uh.date,
+                    DATE_FORMAT(uh.date, '%d/%m/%Y %H:%i:%s') as date_formatted,
                     u.username,
                     p.product_name 
                 FROM user_history uh

@@ -9,6 +9,9 @@ router.get('/available', Middleware.verifyLogin, export_batch.getAvailableProduc
 // Lấy lịch sử các phiếu xuất
 router.get('/', Middleware.verifyLogin, export_batch.getAllBatches);
 
+// Lấy chi tiết 1 phiếu xuất
+router.get('/:id', Middleware.verifyLogin, export_batch.getExportBatchDetail);
+
 // Tạo phiếu xuất mới
 router.post('/', Middleware.verifyLogin, export_batch.createExportBatch);
 

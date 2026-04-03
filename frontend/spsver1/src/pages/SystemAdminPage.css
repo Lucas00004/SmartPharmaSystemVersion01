@@ -14,6 +14,7 @@
   background-color: var(--admin-bg);
   font-family: 'Segoe UI', 'Roboto', sans-serif;
   color: var(--text-dark); /* Change default text color to dark */
+  position: relative;
 }
 
 /* SIDEBAR */
@@ -24,6 +25,12 @@
   padding: 20px 0;
   display: flex;
   flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 100;
 }
 
 .admin-sidebar h2 {
@@ -83,10 +90,13 @@
     font-weight: 500;
     color: #d9534f; /* A standard danger red */
     border-top: 1px solid var(--border-color);
+    transition: all 0.2s ease;
 }
 
 .admin-sidebar .logout-btn:hover {
     background-color: #fdf2f2;
+    color: #c9302c;
+    padding-left: 30px;
 }
 
 /* MAIN CONTENT */
@@ -94,6 +104,8 @@
   flex: 1;
   padding: 40px;
   overflow-y: auto;
+  margin-left: 260px;
+  min-height: 100vh;
 }
 
 .card {

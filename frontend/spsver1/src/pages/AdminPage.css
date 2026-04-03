@@ -502,6 +502,11 @@
   font-family: inherit;
 }
 
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #aaa;
+}
+
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {

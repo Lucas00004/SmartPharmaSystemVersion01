@@ -15,8 +15,7 @@ router.put('/:id', Middleware.verifyLogin, import_batch.updateImportBatch);
 // 🔹 4. XÓA LÔ NHẬP HÀNG (DELETE)
 router.delete('/:id', Middleware.verifyLogin, import_batch.deleteImportBatch);
 
-// 🔹 5. LẤY CHI TIẾT LÔ NHẬP HÀNG THEO ID (GET)
+// 🔹 5. LẤY CHI TIẾT LÔ NHẬP HÀNG THEO ID (GET) 
 router.get('/:id', Middleware.verifyLogin, import_batch.getBatchDetails);
-
 
 module.exports = router;

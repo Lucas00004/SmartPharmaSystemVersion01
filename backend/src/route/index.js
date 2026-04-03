@@ -11,6 +11,7 @@ const unitRouter = require('./unit');
 const userRouter = require('./user');
 const user_historyRouter = require('./user_history');
 const supplierRouter = require('./supplier');
+const errorTrackingRouter = require('./error_tracking');
 
 function route(app) {
     
@@ -27,6 +28,7 @@ function route(app) {
     app.use('/api/unit', unitRouter);
     app.use('/api/user', userRouter);
     app.use('/api/user_history', user_historyRouter);
+    app.use('/api/error_tracking', errorTrackingRouter);
 
 
 }

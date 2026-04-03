@@ -15,8 +15,8 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Điều hướng mặc định */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* Điều hướng mặc định - về trang UserPage */}
+        <Route path="/" element={<Navigate to="/user" replace />} />
         
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

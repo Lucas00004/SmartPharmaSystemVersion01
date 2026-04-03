@@ -15,6 +15,7 @@ const import_batchController = {
                     s.supplier_name,
                     b.total_price, 
                     b.create_date,
+                    DATE_FORMAT(b.create_date, '%d/%m/%Y %H:%i:%s') as create_date_formatted,
                     b.user_id,
                     u.full_name as creator_name
                 FROM product_batch b
@@ -36,18 +37,20 @@ const import_batchController = {
         try {
             const sql = `
                 SELECT 
-                    d.*, 
+                    d.batch_detail_id, d.batch_id, d.product_id, d.quantity, d.unit_id, d.import_price, d.expiry_date,
                     p.product_code, p.product_name, p.category_id, p.selling_price, p.image, 
                     p.description, p.active_ingredient, p.supplier_id, s.supplier_name AS product_supplier_name, 
-                    p.storage_condition, u.unit_name
+                    p.storage_condition, u.unit_name, c.category_name
                 FROM product_batch_detail d
                 JOIN product p ON d.product_id = p.product_id
                 JOIN unit u ON d.unit_id = u.unit_id
                 LEFT JOIN supplier s ON p.supplier_id = s.supplier_id
+                LEFT JOIN product_category c ON p.category_id = c.category_id
                 WHERE d.batch_id = ?
             `;
             const [rows] = await db.query(sql, [id]);
-            res.status(200).json({ success: true, data: rows });
+            // Trả về dạng { success, products } để Frontend xử lý dễ
+            res.status(200).json({ success: true, products: rows, data: rows });
         } catch (error) {
             console.error("Lỗi getBatchDetails:", error);
             res.status(500).json({ success: false, error: error.message });

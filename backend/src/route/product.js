@@ -1,18 +1,18 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const Middleware = require('../middleware/authMiddleware');
 const productController = require('../controller/productController');
 
-// API Tìm kiếm sản phẩm theo tên
+// API Tìm kiếm sản phẩm theo tên (PUBLIC - không cần login)
 router.get('/search', productController.searchProducts);
 
-// READ PRODUCT (Dành cho User nhìn - Aggregation theo tên)
-router.get('/', Middleware.verifyLogin, productController.getAllProduct);
+// READ PRODUCT (PUBLIC - User không cần login để xem)
+router.get('/', productController.getAllProduct);
 
-// UPDATE PRODUCT
-router.put('/:id',Middleware.verifyLogin,  productController.updateProduct);
+// UPDATE PRODUCT (cần login)
+router.put('/:id', Middleware.verifyLogin, productController.updateProduct);
 
-// DELETE PRODUCT
+// DELETE PRODUCT (cần login)
 router.delete('/:id', Middleware.verifyLogin, productController.deleteProduct);
 
 module.exports = router;

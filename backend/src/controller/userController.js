@@ -6,8 +6,10 @@ const userController = {
     getAllUsers: async (req, res) => {
         try {
             const [users] = await db.query('SELECT user_id, username, full_name, role FROM user');
+            console.log("📋 Lấy danh sách user - Số bản ghi:", users.length);
             res.status(200).json(users);
         } catch (error) {
+            console.error("❌ Lỗi trong getAllUsers:", error);
             res.status(500).json({ error: error.message });
         }
     },
@@ -50,11 +52,13 @@ const userController = {
             // Ghi log (Nếu bạn có hàm writeLog chung thì nên dùng, ở đây tôi viết inline theo mẫu cũ)
             await db.query(
                 'INSERT INTO history_activity (user_id, action, entity, description) VALUES (?, ?, ?, ?)',
-                [req.session.user?.id || null, 'CREATE', 'user', `Created user: ${username}`]
+                [req.session.user?.id || null, 'CREATE', 'user', `Admin created staff account: ${username}`]
             );
 
+            console.log("✅ Tạo user mới:", username, "- Role:", role || 'user');
             res.status(201).json({ message: "Thêm người dùng thành công!", userId: result.insertId });
         } catch (error) {
+            console.error("❌ Lỗi trong createUser:", error);
             res.status(500).json({ error: error.message });
         }
     },
@@ -93,8 +97,10 @@ const userController = {
                 [req.session.user?.id || null, 'UPDATE', 'user', `Updated user ID: ${id}`]
             );
 
+            console.log("✅ Cập nhật user ID:", id);
             res.status(200).json({ message: "Cập nhật thông tin thành công!" });
         } catch (error) {
+            console.error("❌ Lỗi trong updateUser:", error);
             res.status(500).json({ error: error.message });
         }
     },
@@ -121,8 +127,10 @@ const userController = {
                 [req.session.user?.id || null, 'DELETE', 'user', `Deleted user ID: ${id}`]
             );
 
+            console.log("🗑️ Xóa user ID:", id);
             res.status(200).json({ message: "Xóa người dùng thành công!" });
         } catch (error) {
+            console.error("❌ Lỗi trong deleteUser:", error);
             res.status(500).json({ error: error.message });
         }
     }
