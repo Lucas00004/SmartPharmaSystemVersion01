@@ -583,6 +583,85 @@ const AdminPage = () => {
   };
 
 
+  // === LOGIC MỚI: QUẢN LÝ XUẤT KHO (ĐÃ SỬA - CHỌN SẢN PHẨM TRỰC TIẾP) ===
+  const handleAddNewExport = () => {
+    setExportFormData({
+      customer: '',
+      note: '',
+      products: []
+    });
+    setShowExportModal(true);
+  };
+
+  const handleAddExportRow = () => {
+    setExportFormData(prev => ({
+      ...prev,
+      products: [...prev.products, { product_id: '', export_quantity: 1, export_price: 0, unit_id: '', product_name: '' }]
+    }));
+  };
+
+  const handleExportProductChange = (index, productId) => {
+    const selectedProd = products.find(p => p.product_id === parseInt(productId));
+    if (!selectedProd) return;
+
+    setExportFormData(prev => {
+      const newProds = [...prev.products];
+      newProds[index] = {
+        ...newProds[index],
+        product_id: selectedProd.product_id,
+        product_name: selectedProd.product_name,
+        unit_id: selectedProd.unit_id,
+        unit_name: selectedProd.unit_name,
+        export_price: selectedProd.selling_price || 0
+      };
+      return { ...prev, products: newProds };
+    });
+  };
+
+  const handleExportInputChange = (index, field, value) => {
+    setExportFormData(prev => {
+      const newProds = [...prev.products];
+      newProds[index][field] = value;
+      return { ...prev, products: newProds };
+    });
+  };
+
+  const handleSaveExport = async (e) => {
+    e.preventDefault();
+    if (exportFormData.products.length === 0) return alert("Vui lòng chọn ít nhất 1 sản phẩm");
+
+    const payload = {
+      note: exportFormData.note,
+      customer: exportFormData.customer,
+      products: exportFormData.products.map(p => ({
+        product_id: p.product_id,
+        export_quantity: Number(p.export_quantity),
+        export_price: Number(p.export_price),
+        unit_id: p.unit_id
+      }))
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/api/export_batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        credentials: 'include'
+      });
+      const result = await res.json();
+      if (res.ok) {
+        alert("Xuất kho thành công!");
+        setShowExportModal(false);
+        fetchAll();
+      } else {
+        alert(result.message || "Lỗi khi xuất kho");
+      }
+    } catch (err) { 
+      alert("Lỗi kết nối server"); 
+      logErrorToBackend('AdminPage', `Lỗi xuất kho: ${err.message}`);
+    }
+  };
+
   // === LOGIC MỚI: QUẢN LÝ NHẬP KHO ===
   const handleAddBatchProductRow = () => {
     // Mở modal thay vì thêm trực tiếp
@@ -769,117 +848,7 @@ const AdminPage = () => {
     }
   };
 
-  // ==========================================
-  // --- LOGIC XỬ LÝ XUẤT KHO ---
-  // ==========================================
-  
-  // Hàm xử lý khi chọn lô hàng - fetch sản phẩm trong lô
-  const handleSelectBatch = async (batchId) => {
-    if (!batchId) {
-      setSelectedBatchId(null);
-      setProductsInBatch([]);
-      return;
-    }
-
-    setSelectedBatchId(batchId);
-    
-    try {
-      const res = await fetch(`${API_BASE}/api/import_batch/${batchId}`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        // API trả về chi tiết lô, trong đó có danh sách sản phẩm
-        const products = data.products || data.data || [];
-        setProductsInBatch(products);
-        console.log("✅ Lấy được sản phẩm trong lô:", products);
-      } else {
-        console.error("❌ Lỗi tải sản phẩm lô hàng:", res.status);
-        alert("Không thể tải sản phẩm trong lô này");
-      }
-    } catch (err) {
-      console.error("❌ Lỗi kết nối:", err.message);
-      alert("Lỗi tải sản phẩm lô hàng");
-    }
-  };
-  
-  const handleAddNewExport = () => {
-    setExportFormData({
-      batch_id: null,
-      customer: '',
-      note: '',
-      products: []
-    });
-    setSelectedBatchId(null);
-    setProductsInBatch([]);
-    setShowExportModal(true);
-  };
-
-  const handleAddExportRow = () => {
-    setExportFormData(prev => ({
-      ...prev,
-      products: [...prev.products, { product_id: '', export_quantity: 1, export_price: 0, unit_id: '', max_qty: 0 }]
-    }));
-  };
-
-  const handleExportProductChange = (index, productId) => {
-    const selectedProd = productsInBatch.find(p => p.product_id === parseInt(productId));
-    if (!selectedProd) return;
-
-    setExportFormData(prev => {
-      const newProds = [...prev.products];
-      newProds[index] = {
-        ...newProds[index],
-        product_id: selectedProd.product_id,
-        product_name: selectedProd.product_name,
-        unit_id: selectedProd.unit_id,
-        unit_name: selectedProd.unit_name,
-        max_qty: selectedProd.quantity || 0,
-        export_price: selectedProd.import_price || 0
-      };
-      return { ...prev, products: newProds };
-    });
-  };
-
-  const handleExportInputChange = (index, field, value) => {
-    setExportFormData(prev => {
-      const newProds = [...prev.products];
-      newProds[index][field] = value;
-      return { ...prev, products: newProds };
-    });
-  };
-
-  const handleSaveExport = async (e) => {
-    e.preventDefault();
-    if (exportFormData.products.length === 0) return alert("Vui lòng chọn ít nhất 1 sản phẩm");
-    if (!selectedBatchId) return alert("Vui lòng chọn lô hàng trước");
-
-    // Payload: Lấy note, customer, products, batch_id - user_id & ngày tạo sẽ lấy từ backend (session)
-    const payload = {
-      note: exportFormData.note,
-      customer: exportFormData.customer,
-      batch_id: selectedBatchId,
-      products: exportFormData.products
-    };
-
-    try {
-      const res = await fetch(`${API_BASE}/api/export_batch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        credentials: 'include'  // Gửi session để backend lấy user_id
-      });
-      const result = await res.json();
-      if (res.ok) {
-        alert("Xuất kho thành công!");
-        setShowExportModal(false);
-        fetchAll();
-      } else {
-        alert(result.message || "Lỗi khi xuất kho");
-      }
-    } catch (err) { 
-      alert("Lỗi kết nối server"); 
-      logErrorToBackend('AdminPage', `Lỗi xuất kho: ${err.message}`);
-    }
-  };
+  // === LOGIC MỚI: QUẢN LÝ XUẤT KHO (ĐÃ SỬA - CHỌN SẢN PHẨM TRỰC TIẾP) ===
 
   const handleViewExportDetail = async (ticketId) => {
     try {
@@ -1472,33 +1441,9 @@ const AdminPage = () => {
             <form onSubmit={handleSaveExport}>
               <div className="form-grid">
                 <div className="form-group">
-                  <label>🛍️ Chọn Lô Hàng *</label>
-                  <select 
-                    value={selectedBatchId || ''} 
-                    onChange={(e) => handleSelectBatch(e.target.value ? parseInt(e.target.value) : null)}
-                    required
-                    style={{ width: '100%' }}
-                  >
-                    <option value="">-- Chọn lô hàng --</option>
-                    {importBatches.map(batch => (
-                      <option key={batch.batch_id} value={batch.batch_id}>
-                        {batch.batch_number} - {batch.supplier_name || 'N/A'}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedBatchId && productsInBatch.length > 0 && (
-                    <p style={{ fontSize: '12px', color: '#28a745', marginTop: '5px' }}>
-                      ✅ Có {productsInBatch.length} sản phẩm trong lô
-                    </p>
-                  )}
-                </div>
-                <div className="form-group">
                   <label>Tên khách hàng:</label>
                   <input type="text" value={exportFormData.customer} onChange={(e) => setExportFormData({...exportFormData, customer: e.target.value})} placeholder="Nhập tên khách..." />
                 </div>
-              </div>
-
-              <div className="form-grid">
                 <div className="form-group">
                   <label>Ghi chú:</label>
                   <input type="text" value={exportFormData.note} onChange={(e) => setExportFormData({...exportFormData, note: e.target.value})} placeholder="Nhập ghi chú (tuỳ chọn)" />
@@ -1507,15 +1452,15 @@ const AdminPage = () => {
 
               <div style={{ marginTop: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <h3>Danh sách sản phẩm xuất</h3>
-                  <button type="button" className="btn-edit" onClick={handleAddExportRow} disabled={!selectedBatchId || productsInBatch.length === 0}>
+                  <h3>📋 Danh sách sản phẩm xuất (Backend sẽ tự chọn lô FEFO)</h3>
+                  <button type="button" className="btn-edit" onClick={handleAddExportRow}>
                     + Thêm sản phẩm
                   </button>
                 </div>
                 <table className="products-table">
                   <thead>
                     <tr>
-                      <th>SẢN PHẨM (TRONG LÔ ĐÃ CHỌN)</th>
+                      <th>SẢN PHẨM</th>
                       <th>SỐ LƯỢNG XUẤT</th>
                       <th>GIÁ XUẤT (VNĐ)</th>
                       <th>ĐƠN VỊ</th>
@@ -1533,9 +1478,9 @@ const AdminPage = () => {
                             style={{ width: '100%' }}
                           >
                             <option value="">-- Chọn sản phẩm --</option>
-                            {productsInBatch.map(p => (
+                            {products.filter(p => p.total_available > 0).map(p => (
                               <option key={p.product_id} value={p.product_id}>
-                                {p.product_name} (Có: {p.quantity})
+                                {p.product_name} (Tồn: {p.total_available})
                               </option>
                             ))}
                           </select>
@@ -1544,7 +1489,6 @@ const AdminPage = () => {
                           <input 
                             type="number" 
                             min="1" 
-                            max={item.max_qty} 
                             value={item.export_quantity} 
                             onChange={(e) => handleExportInputChange(index, 'export_quantity', e.target.value)}
                             required

@@ -106,15 +106,18 @@ const exportController = {
         }
     },
 
-    // 3. Tạo lô xuất mới - Chọn 1 batch cụ thể, sau đó chọn sản phẩm trong batch đó
-    // Backend chỉ trừ từ batch được chọn (không áp dụng FEFO trên toàn kho)
+    // 3. Tạo lô xuất mới - Frontend chỉ gửi danh sách sản phẩm, backend tự chọn lô FEFO (hạn ngắn nhất)
     createExportBatch: async (req, res) => {
-        // Lấy user_id từ session (tự động lấy khi middleware xác thực)
+        // Lấy user_id từ session
         const user_id = req.session?.user?.id;
-        const { note, customer, products, batch_id } = req.body;
+        const { note, customer, products } = req.body;
         
         if (!user_id) {
             return res.status(401).json({ success: false, message: 'Không tìm thấy user_id. Vui lòng đăng nhập lại!' });
+        }
+
+        if (!products || !Array.isArray(products) || products.length === 0) {
+            return res.status(400).json({ success: false, message: 'Danh sách sản phẩm không hợp lệ!' });
         }
 
         const connection = await db.getConnection();
@@ -135,20 +138,26 @@ const exportController = {
 
             // Xử lý từng sản phẩm được chọn
             for (const item of products) {
-                // Kiểm tra số lượng có sẵn trong batch được chọn
-                const [batchProductCheck] = await connection.query(
-                    `SELECT quantity FROM product_batch_detail 
-                     WHERE batch_id = ? AND product_id = ?`,
-                    [batch_id, item.product_id]
+                // Tìm lô FEFO (hạn ngắn nhất) có sẵn sản phẩm này
+                const [fefoResult] = await connection.query(
+                    `SELECT pbd.batch_id, pbd.quantity, pbd.expiry_date
+                     FROM product_batch_detail pbd
+                     WHERE pbd.product_id = ? AND pbd.quantity > 0
+                     ORDER BY pbd.expiry_date ASC
+                     LIMIT 1`,
+                    [item.product_id]
                 );
 
-                if (batchProductCheck.length === 0) {
-                    throw new Error(`Sản phẩm ID ${item.product_id} không có trong batch ID ${batch_id}.`);
+                if (fefoResult.length === 0) {
+                    throw new Error(`Sản phẩm ID ${item.product_id} không có tồn kho.`);
                 }
 
-                const availableQty = batchProductCheck[0].quantity;
+                const batch = fefoResult[0];
+                const batch_id = batch.batch_id;
+                const availableQty = batch.quantity;
+
                 if (availableQty < item.export_quantity) {
-                    throw new Error(`Sản phẩm ID ${item.product_id} chỉ có ${availableQty} cái, bạn yêu cầu xuất ${item.export_quantity} cái.`);
+                    throw new Error(`Sản phẩm ID ${item.product_id} chỉ có ${availableQty} cái trong lô hạn sớm nhất, bạn yêu cầu xuất ${item.export_quantity} cái.`);
                 }
 
                 // Trừ số lượng từ product_batch_detail
