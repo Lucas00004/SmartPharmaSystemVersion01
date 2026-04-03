@@ -68,6 +68,14 @@ const userController = {
         try {
             const { id } = req.params;
             const { full_name, role, password } = req.body;
+            
+            // Kiểm tra: User chỉ có thể update chính mình (trừ admin có thể update người khác)
+            const sessionUserId = req.session.user?.id;
+            const isAdmin = req.session.user?.role === 'admin';
+            
+            if (!isAdmin && String(id) !== String(sessionUserId)) {
+                return res.status(403).json({ message: "Bạn chỉ có thể cập nhật tài khoản của chính mình!" });
+            }
 
             // Kiểm tra user có tồn tại không
             const [users] = await db.query('SELECT * FROM user WHERE user_id = ?', [id]);
@@ -75,8 +83,14 @@ const userController = {
                 return res.status(404).json({ message: "Người dùng không tồn tại!" });
             }
 
-            let query = 'UPDATE user SET full_name = ?, role = ?';
-            let params = [full_name, role];
+            let query = 'UPDATE user SET full_name = ?';
+            let params = [full_name];
+
+            // Nếu là admin mới được update role, user bình thường không được
+            if (isAdmin && role) {
+                query += ', role = ?';
+                params.push(role);
+            }
 
             // Nếu có đổi mật khẩu thì mã hóa và thêm vào query
             if (password) {

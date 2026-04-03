@@ -10,6 +10,8 @@ import AdminPage from './pages/AdminPage';
 import HistoryPage from './pages/History';
 import SystemAdminPage from './pages/SystemAdminPage';
 import UserPage from './pages/UserPage';
+import ProfilePage from './pages/ProfilePage';
+import PurchaseHistoryPage from './pages/PurchaseHistoryPage';
 
 function App() {
   return (
@@ -30,6 +32,8 @@ function App() {
         
         <Route path="/system-admin" element={<SystemAdminPage />} />
         <Route path="/user" element={<UserPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/purchase-history" element={<PurchaseHistoryPage />} />
       </Routes>
     </Router>
   );

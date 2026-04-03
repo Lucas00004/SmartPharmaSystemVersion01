@@ -13,7 +13,7 @@ router.get('/:id', Middleware.verifyLogin, Middleware.verifyAdmin, user.getUserB
 router.post('/', Middleware.verifyLogin, Middleware.verifyAdmin, user.createUser);
 
 // 🔹 UPDATE USER (Cập nhật thông tin người dùng - Admin only)
-router.put('/:id', Middleware.verifyLogin, Middleware.verifyAdmin, user.updateUser);
+router.put('/:id', Middleware.verifyLogin, user.updateUser);
 
 // 🔹 DELETE USER (Xóa người dùng - Admin only)
 router.delete('/:id', Middleware.verifyLogin, Middleware.verifyAdmin, user.deleteUser);

@@ -28,6 +28,7 @@ function UserPage() {
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   // ================= CART STATES =================
   const [cartItems, setCartItems] = useState(() => {
@@ -400,18 +401,94 @@ function UserPage() {
 
         <div className="actions">
           {isLoggedIn && currentUser ? (
-            <>
-              <button className="btn-action" style={{ color: '#28a745', fontWeight: 'bold' }}>
-                <i className="fa-solid fa-check-circle"></i> {currentUser.full_name || currentUser.username}
-              </button>
+            <div style={{ position: 'relative' }}>
               <button 
                 className="btn-action" 
-                onClick={handleLogout}
-                style={{ color: '#dc3545' }}
+                style={{ color: '#28a745', fontWeight: 'bold' }}
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
               >
-                <i className="fa-solid fa-arrow-right-from-bracket"></i> Đăng xuất
+                <i className="fa-solid fa-check-circle"></i> {currentUser.full_name || currentUser.username}
+                <i className="fa-solid fa-chevron-down" style={{ marginLeft: '8px', fontSize: '12px' }}></i>
               </button>
-            </>
+              
+              {isUserMenuOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  backgroundColor: 'white',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+                  minWidth: '200px',
+                  zIndex: 1000,
+                  marginTop: '5px'
+                }}>
+                  <button 
+                    onClick={() => {
+                      navigate('/profile');
+                      setIsUserMenuOpen(false);
+                    }}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '12px 15px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      borderBottom: '1px solid #eee',
+                      color: '#333'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fa-solid fa-user-circle" style={{ marginRight: '8px' }}></i> Trang cá nhân
+                  </button>
+                  <button 
+                    onClick={() => {
+                      navigate('/purchase-history');
+                      setIsUserMenuOpen(false);
+                    }}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '12px 15px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      borderBottom: '1px solid #eee',
+                      color: '#333'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fa-solid fa-history" style={{ marginRight: '8px' }}></i> Lịch sử mua hàng
+                  </button>
+                  <button 
+                    onClick={handleLogout}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '12px 15px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#dc3545'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fa-solid fa-arrow-right-from-bracket" style={{ marginRight: '8px' }}></i> Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <button 
               className="btn-action" 
