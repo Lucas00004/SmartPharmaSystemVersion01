@@ -80,6 +80,9 @@ const AdminPage = () => {
   // Mặc định tab sẽ dựa theo URL ở useEffect bên dưới
   const [activeTab, setActiveTab] = useState('products');
   const [isInitialLoadDone, setIsInitialLoadDone] = useState(false);
+  
+  // Trigger để force update inventory sau khi save
+  const [inventoryRefreshTrigger, setInventoryRefreshTrigger] = useState(0);
 
   // --- THÊM MỚI: Lấy user hiện tại từ localStorage ---
   useEffect(() => {
@@ -399,7 +402,7 @@ const AdminPage = () => {
       
       return () => clearTimeout(timeout);
     }
-  }, [API_BASE, products.length, importBatches.length, isInitialLoadDone]);
+  }, [API_BASE, products.length, importBatches.length, isInitialLoadDone, inventoryRefreshTrigger]);
 
   useEffect(() => {
     const total = batchFormData.products.reduce((sum, item) => {
@@ -471,7 +474,13 @@ const AdminPage = () => {
       active_ingredient: product.active_ingredient || '',
       storage_condition: product.storage_condition || ''
     });
-  if (product.image) setImagePreview(product.image);
+    // Convert image path to full URL để hiển thị trong preview
+    if (product.image) {
+      const imageUrl = String(product.image).startsWith('http') 
+        ? product.image 
+        : `${API_BASE}/uploads/${product.image}`;
+      setImagePreview(imageUrl);
+    }
     setShowModal(true);
   };
 
@@ -562,6 +571,8 @@ const AdminPage = () => {
         }
         setShowModal(false);
         fetchAll();
+        // Trigger lại fetch inventory để cập nhật số lượng
+        setInventoryRefreshTrigger(prev => prev + 1);
         alert(editingId ? "Cập nhật sản phẩm thành công!" : "Tạo sản phẩm thành công!");
       } else {
         const msg = (result && typeof result === 'object')
@@ -659,6 +670,8 @@ const AdminPage = () => {
         alert("Xuất kho thành công!");
         setShowExportModal(false);
         fetchAll();
+        // Trigger lại fetch inventory để cập nhật số lượng
+        setInventoryRefreshTrigger(prev => prev + 1);
       } else {
         alert(result.message || "Lỗi khi xuất kho");
       }
@@ -826,7 +839,9 @@ const AdminPage = () => {
       const result = await response.json();
       if (response.ok || response.status === 201) {
         setShowBatchModal(false);
-        fetchAll(); 
+        fetchAll();
+        // Trigger lại fetch inventory để cập nhật số lượng
+        setInventoryRefreshTrigger(prev => prev + 1);
         alert(editingBatchId ? "Cập nhật phiếu nhập thành công!" : "Tạo phiếu nhập kho thành công!");
       } else {
         alert(result.message || result.error || "Có lỗi xảy ra khi lưu phiếu nhập");
@@ -845,6 +860,8 @@ const AdminPage = () => {
       if (response.ok) {
         alert("Đã xóa phiếu nhập thành công!");
         fetchAll();
+        // Trigger lại fetch inventory để cập nhật số lượng
+        setInventoryRefreshTrigger(prev => prev + 1);
       } else {
         const result = await response.json();
         alert(result.message || "Xóa thất bại!");
@@ -877,7 +894,12 @@ const AdminPage = () => {
     if (!window.confirm("Bạn có chắc muốn hủy phiếu xuất này? Số lượng sẽ được hoàn lại kho!")) return;
     try {
       const res = await fetch(`${API_BASE}/api/export_batch/${id}`, { method: 'DELETE', credentials: 'include' });
-      if (res.ok) { fetchAll(); alert("Đã hủy phiếu xuất"); }
+      if (res.ok) { 
+        fetchAll(); 
+        // Trigger lại fetch inventory để cập nhật số lượng
+        setInventoryRefreshTrigger(prev => prev + 1);
+        alert("Đã hủy phiếu xuất"); 
+      }
     } catch (err) { 
       alert("Lỗi khi xóa"); 
       logErrorToBackend('AdminPage', `Lỗi xóa phiếu xuất: ${err.message}`);
