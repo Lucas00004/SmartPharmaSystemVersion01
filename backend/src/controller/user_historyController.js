@@ -106,6 +106,34 @@ const userHistoryController = {
             // Luôn release connection dù thành công hay lỗi
             connection.release();
         }
+    },
+
+    // 3. LẤY TOÀN BỘ LỊCH SỬ BÁN HÀNG ONLINE (DÀNH CHO STAFF/ADMIN)
+    getAllUser_History: async (req, res) => {
+        try {
+            const query = `
+                SELECT 
+                    uh.user_history_id,
+                    uh.quantity,
+                    uh.unit_name,
+                    uh.address,
+                    uh.total_price,
+                    uh.payment,
+                    uh.date,
+                    u.username,
+                    p.product_name 
+                FROM user_history uh
+                JOIN user u ON uh.user_id = u.user_id
+                JOIN product p ON uh.product_id = p.product_id
+                ORDER BY uh.date DESC
+            `;
+            const [history] = await db.query(query);
+            
+            res.status(200).json(history);
+        } catch (error) {
+            console.error("Lỗi lấy toàn bộ lịch sử bán hàng online:", error);
+            res.status(500).json({ error: "Đã xảy ra lỗi khi lấy danh sách lịch sử bán hàng." });
+        }
     }
 };
 
