@@ -2,11 +2,19 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
 /**
- * Định dạng tiền tệ VNĐ
+ * Định dạng tiền tệ VNĐ - Chỉ trả về số (Excel sẽ format theo locale)
  */
 const formatVND = (value) => {
-  if (!value) return '0 ₫';
-  return `${Number(value).toLocaleString('vi-VN')} ₫`;
+  if (!value) return 0;
+  return Number(value);
+};
+
+/**
+ * Format tiền để hiển thị trong Excel (với dấu phân cách)
+ */
+const formatVNDDisplay = (value) => {
+  if (!value) return '0';
+  return `${Number(value).toLocaleString('vi-VN')}`;
 };
 
 /**
@@ -64,6 +72,9 @@ export const exportPurchaseHistoryToExcel = async (historyData) => {
     }
 
     wsRow.alignment = { horizontal: 'left', vertical: 'center', wrapText: true };
+    
+    // Format cột tiền
+    wsRow.getCell(6).numFmt = '#,##0';
   });
 
   // Thêm tổng cộng
@@ -133,6 +144,9 @@ export const exportImportBatchesToExcel = async (batchesData) => {
     }
 
     wsRow.alignment = { horizontal: 'left', vertical: 'center', wrapText: true };
+    
+    // Format cột tiền
+    wsRow.getCell(3).numFmt = '#,##0';
   });
 
   // Tính tổng tiền
@@ -141,6 +155,7 @@ export const exportImportBatchesToExcel = async (batchesData) => {
   totalRow.getCell(1).value = 'TỔNG CỘNG';
   totalRow.getCell(1).font = { bold: true };
   totalRow.getCell(3).value = formatVND(totalPrice);
+  totalRow.getCell(3).numFmt = '#,##0';
   totalRow.getCell(3).font = { bold: true, color: { argb: 'FFFF0000' } };
 
   totalRow.fill = {
@@ -204,6 +219,9 @@ export const exportExportTicketsToExcel = async (ticketsData) => {
     }
 
     wsRow.alignment = { horizontal: 'left', vertical: 'center', wrapText: true };
+    
+    // Format cột tiền
+    wsRow.getCell(4).numFmt = '#,##0';
   });
 
   // Tính tổng tiền
@@ -216,6 +234,7 @@ export const exportExportTicketsToExcel = async (ticketsData) => {
   totalRow.getCell(3).value = totalQuantity;
   totalRow.getCell(3).font = { bold: true };
   totalRow.getCell(4).value = formatVND(totalPrice);
+  totalRow.getCell(4).numFmt = '#,##0';
   totalRow.getCell(4).font = { bold: true, color: { argb: 'FFFF0000' } };
 
   totalRow.fill = {
@@ -276,6 +295,8 @@ export const exportComprehensiveReportToExcel = async (historyData, batchesData,
     if (index % 2 === 0) {
       wsRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
     }
+    
+    wsRow.getCell(6).numFmt = '#,##0';
   });
 
   const totalHistoryPrice = historyData.reduce((sum, item) => sum + (Number(item.total_price) || 0), 0);
@@ -283,6 +304,7 @@ export const exportComprehensiveReportToExcel = async (historyData, batchesData,
   totalHistoryRow.getCell(1).value = 'TỔNG CỘNG';
   totalHistoryRow.getCell(1).font = { bold: true };
   totalHistoryRow.getCell(6).value = formatVND(totalHistoryPrice);
+  totalHistoryRow.getCell(6).numFmt = '#,##0';
   totalHistoryRow.getCell(6).font = { bold: true, color: { argb: 'FFFF0000' } };
   totalHistoryRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
 
@@ -318,6 +340,8 @@ export const exportComprehensiveReportToExcel = async (historyData, batchesData,
     if (index % 2 === 0) {
       wsRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
     }
+    
+    wsRow.getCell(3).numFmt = '#,##0';
   });
 
   const totalBatchesPrice = batchesData.reduce((sum, item) => sum + (Number(item.total_price) || 0), 0);
@@ -325,6 +349,7 @@ export const exportComprehensiveReportToExcel = async (historyData, batchesData,
   totalBatchesRow.getCell(1).value = 'TỔNG CỘNG';
   totalBatchesRow.getCell(1).font = { bold: true };
   totalBatchesRow.getCell(3).value = formatVND(totalBatchesPrice);
+  totalBatchesRow.getCell(3).numFmt = '#,##0';
   totalBatchesRow.getCell(3).font = { bold: true, color: { argb: 'FFFF0000' } };
   totalBatchesRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFD8B' } };
 
@@ -364,6 +389,8 @@ export const exportComprehensiveReportToExcel = async (historyData, batchesData,
     if (index % 2 === 0) {
       wsRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
     }
+    
+    wsRow.getCell(4).numFmt = '#,##0';
   });
 
   const totalTicketsPrice = ticketsData.reduce((sum, item) => sum + (Number(item.total_price) || 0), 0);
@@ -375,6 +402,7 @@ export const exportComprehensiveReportToExcel = async (historyData, batchesData,
   totalTicketsRow.getCell(3).value = totalTicketsQuantity;
   totalTicketsRow.getCell(3).font = { bold: true };
   totalTicketsRow.getCell(4).value = formatVND(totalTicketsPrice);
+  totalTicketsRow.getCell(4).numFmt = '#,##0';
   totalTicketsRow.getCell(4).font = { bold: true, color: { argb: 'FFFF0000' } };
   totalTicketsRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
 
@@ -422,6 +450,7 @@ export const exportComprehensiveReportToExcel = async (historyData, batchesData,
     });
 
     wsRow.getCell(1).font = { bold: true };
+    wsRow.getCell(3).numFmt = '#,##0';
     wsRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE7E6E6' } };
   });
 
@@ -431,6 +460,7 @@ export const exportComprehensiveReportToExcel = async (historyData, batchesData,
   grandTotalRow.getCell(1).value = '🎯 TỔNG DOANH THU TOÀN BỘ';
   grandTotalRow.getCell(1).font = { bold: true, size: 12, color: { argb: 'FFFF0000' } };
   grandTotalRow.getCell(3).value = formatVND(grandTotal);
+  grandTotalRow.getCell(3).numFmt = '#,##0';
   grandTotalRow.getCell(3).font = { bold: true, size: 12, color: { argb: 'FFFF0000' } };
   grandTotalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
 

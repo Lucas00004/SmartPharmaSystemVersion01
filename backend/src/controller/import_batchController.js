@@ -205,22 +205,24 @@ const import_batchController = {
             await connection.beginTransaction();
             const { id } = req.params; 
 
-            // BƯỚC 1: Lấy product_id
+            // BƯỚC 1: Lấy product_id (nếu có)
             const [details] = await connection.query(`SELECT product_id FROM product_batch_detail WHERE batch_id = ?`, [id]);
-            if (details.length === 0) {
-                await connection.rollback();
-                return res.status(404).json({ success: false, message: "Phiếu nhập không tồn tại hoặc không có sản phẩm!" });
-            }
-
+            
             const productIds = details.map(d => d.product_id);
 
             // BƯỚC 2: Xóa detail
             await connection.execute(`DELETE FROM product_batch_detail WHERE batch_id = ?`, [id]);
 
             // BƯỚC 3: Xóa batch
-            await connection.execute(`DELETE FROM product_batch WHERE batch_id = ?`, [id]);
+            const [batchResult] = await connection.execute(`DELETE FROM product_batch WHERE batch_id = ?`, [id]);
+            
+            // Kiểm tra xem batch có tồn tại không
+            if (batchResult.affectedRows === 0) {
+                await connection.rollback();
+                return res.status(404).json({ success: false, message: "Phiếu nhập không tồn tại!" });
+            }
 
-            // BƯỚC 4: Xóa product
+            // BƯỚC 4: Xóa product (nếu có)
             for (const pid of productIds) {
                 await connection.execute(`DELETE FROM product WHERE product_id = ?`, [pid]);
             }
